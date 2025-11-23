@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Pressable, useColorScheme } from "react-native";
 import Animated, {
     FadeInDown,
@@ -11,6 +11,8 @@ import Animated, {
 import { Ionicons } from "@expo/vector-icons";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
+import ReminderPicker from "./ReminderPicker";
+import { Todo } from "@/types/todo";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -26,24 +28,28 @@ const CARD_COLORS = [
     "bg-neo-orange",     // Vivid Orange
 ];
 
-interface Todo {
-    id: string;
-    text: string;
-    completed: boolean;
-    colorVariant?: number;
-}
-
 interface TodoItemProps {
     item: Todo;
     index: number;
     onToggle: (id: string) => void;
     onEdit: (todo: Todo) => void;
     onDelete: (id: string) => void;
+    onSetReminder: (id: string, date: Date) => void;
+    onClearReminder: (id: string) => void;
 }
 
-export default function TodoItem({ item, index, onToggle, onEdit, onDelete }: TodoItemProps) {
+export default function TodoItem({
+                                     item,
+                                     index,
+                                     onToggle,
+                                     onEdit,
+                                     onDelete,
+                                     onSetReminder,
+                                     onClearReminder,
+                                 }: TodoItemProps) {
     const colorScheme = useColorScheme();
     const colorClass = CARD_COLORS[item.colorVariant ?? index % CARD_COLORS.length];
+    const [showReminderPicker, setShowReminderPicker] = useState(false);
 
     // Animation for press feedback - bouncy and quick
     const scale = useSharedValue(1);
@@ -71,6 +77,16 @@ export default function TodoItem({ item, index, onToggle, onEdit, onDelete }: To
         }, 100);
 
         onToggle(item.id);
+    };
+
+    const handleSetReminder = (date: Date) => {
+        onSetReminder(item.id, date);
+        setShowReminderPicker(false);
+    };
+
+    const handleClearReminder = () => {
+        onClearReminder(item.id);
+        setShowReminderPicker(false);
     };
 
     return (
@@ -133,6 +149,22 @@ export default function TodoItem({ item, index, onToggle, onEdit, onDelete }: To
                 {/* Action Buttons - more aggressive styling */}
                 <View className="flex-row gap-3">
                     <Pressable
+                        onPress={() => setShowReminderPicker(!showReminderPicker)}
+                        className={cn(
+                            "h-11 w-11 items-center justify-center border-5 border-black shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:shadow-brutal-dark-sm",
+                            item.reminderDate
+                                ? "bg-neo-green dark:bg-neo-purple"
+                                : "bg-neo-accent dark:bg-neo-orange"
+                        )}
+                    >
+                        <Ionicons
+                            name={item.reminderDate ? "notifications-sharp" : "alarm-sharp"}
+                            size={20}
+                            color="black"
+                        />
+                    </Pressable>
+
+                    <Pressable
                         onPress={() => {
                             rotation.value = withSpring(-5, {
                                 damping: 10,
@@ -167,6 +199,15 @@ export default function TodoItem({ item, index, onToggle, onEdit, onDelete }: To
                     </Pressable>
                 </View>
             </View>
+
+            {/* Reminder Picker */}
+            {showReminderPicker && (
+                <ReminderPicker
+                    reminderDate={item.reminderDate}
+                    onSetReminder={handleSetReminder}
+                    onClearReminder={handleClearReminder}
+                />
+            )}
         </Animated.View>
     );
 }

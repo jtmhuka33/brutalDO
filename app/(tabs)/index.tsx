@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useMemo} from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
     View,
     Text,
@@ -10,6 +10,7 @@ import {
     useColorScheme,
     Keyboard,
     TouchableWithoutFeedback,
+    Alert,
 } from "react-native";
 import Animated, {
     useSharedValue,
@@ -19,27 +20,24 @@ import Animated, {
     BounceIn,
 } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {StatusBar} from "expo-status-bar";
-import {Ionicons} from "@expo/vector-icons";
-import {clsx} from "clsx";
-import {twMerge} from "tailwind-merge";
+import { StatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+import * as Notifications from "expo-notifications";
 
 import TodoItem from "@/components/TodoItem";
 import FilterTabs from "@/components/FilterTabs";
+import { Todo, FilterType } from "@/types/todo";
+import {
+    registerForPushNotificationsAsync,
+    scheduleNotification,
+    cancelNotification,
+} from "@/utils/notifications";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
 }
-
-// --- Types ---
-interface Todo {
-    id: string;
-    text: string;
-    completed: boolean;
-    colorVariant?: number;
-}
-
-type FilterType = "ALL" | "TODO" | "DONE";
 
 // --- Constants ---
 const STORAGE_KEY = "@neo_brutal_todos_v2";
@@ -55,13 +53,43 @@ export default function TodoApp() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>("ALL");
     const colorScheme = useColorScheme();
+    const notificationListener = useRef<any>();
+    const responseListener = useRef<any>();
 
     // Button animation
     const buttonScale = useSharedValue(1);
 
     const buttonAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{scale: buttonScale.value}],
+        transform: [{ scale: buttonScale.value }],
     }));
+
+    // Initialize notifications
+    useEffect(() => {
+        registerForPushNotificationsAsync();
+
+        // This listener is fired whenever a notification is received while the app is foregrounded
+        notificationListener.current =
+            Notifications.addNotificationReceivedListener((notification) => {
+                console.log("Notification received:", notification);
+            });
+
+        // This listener is fired whenever a user taps on or interacts with a notification
+        responseListener.current =
+            Notifications.addNotificationResponseReceivedListener((response) => {
+                console.log("Notification tapped:", response);
+            });
+
+        return () => {
+            if (notificationListener.current) {
+                Notifications.removeNotificationSubscription(
+                    notificationListener.current
+                );
+            }
+            if (responseListener.current) {
+                Notifications.removeNotificationSubscription(responseListener.current);
+            }
+        };
+    }, []);
 
     // Load Todos on Mount
     useEffect(() => {
@@ -112,7 +140,7 @@ export default function TodoApp() {
         if (editingId) {
             // Edit existing
             setTodos((prev) =>
-                prev.map((t) => (t.id === editingId ? {...t, text: text.trim()} : t))
+                prev.map((t) => (t.id === editingId ? { ...t, text: text.trim() } : t))
             );
             setEditingId(null);
         } else {
@@ -130,17 +158,79 @@ export default function TodoApp() {
 
     const toggleComplete = (id: string) => {
         setTodos((prev) =>
-            prev.map((t) => (t.id === id ? {...t, completed: !t.completed} : t))
+            prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
         );
     };
 
-    const deleteTodo = (id: string) => {
+    const deleteTodo = async (id: string) => {
+        const todo = todos.find((t) => t.id === id);
+
+        // Cancel notification if exists
+        if (todo?.notificationId) {
+            await cancelNotification(todo.notificationId);
+        }
+
         setTodos((prev) => prev.filter((t) => t.id !== id));
     };
 
     const startEditing = (todo: Todo) => {
         setText(todo.text);
         setEditingId(todo.id);
+    };
+
+    const handleSetReminder = async (id: string, date: Date) => {
+        const todo = todos.find((t) => t.id === id);
+        if (!todo) return;
+
+        // Check if date is in the future
+        if (date <= new Date()) {
+            Alert.alert(
+                "Invalid Time",
+                "Please select a time in the future.",
+                [{ text: "OK" }]
+            );
+            return;
+        }
+
+        // Cancel existing notification if any
+        if (todo.notificationId) {
+            await cancelNotification(todo.notificationId);
+        }
+
+        // Schedule new notification
+        const notificationId = await scheduleNotification(todo.text, date);
+
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === id
+                    ? {
+                        ...t,
+                        reminderDate: date.toISOString(),
+                        notificationId,
+                    }
+                    : t
+            )
+        );
+    };
+
+    const handleClearReminder = async (id: string) => {
+        const todo = todos.find((t) => t.id === id);
+        if (!todo || !todo.notificationId) return;
+
+        // Cancel the notification
+        await cancelNotification(todo.notificationId);
+
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === id
+                    ? {
+                        ...t,
+                        reminderDate: undefined,
+                        notificationId: undefined,
+                    }
+                    : t
+            )
+        );
     };
 
     // Filter Logic
@@ -158,7 +248,7 @@ export default function TodoApp() {
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark">
-                <StatusBar style="auto"/>
+                <StatusBar style="auto" />
 
                 {/* Header - More aggressive typography */}
                 <Animated.View
@@ -177,7 +267,7 @@ export default function TodoApp() {
                 </Animated.View>
 
                 {/* Filter Tabs */}
-                <FilterTabs activeFilter={filter} onFilterChange={setFilter}/>
+                <FilterTabs activeFilter={filter} onFilterChange={setFilter} />
 
                 {/* Input Area - More brutal */}
                 <KeyboardAvoidingView
@@ -215,13 +305,15 @@ export default function TodoApp() {
                 <FlatList
                     data={filteredTodos}
                     keyExtractor={(item) => item.id}
-                    renderItem={({item, index}) => (
+                    renderItem={({ item, index }) => (
                         <TodoItem
                             item={item}
                             index={index}
                             onToggle={toggleComplete}
                             onEdit={startEditing}
                             onDelete={deleteTodo}
+                            onSetReminder={handleSetReminder}
+                            onClearReminder={handleClearReminder}
                         />
                     )}
                     contentContainerClassName="pb-24"
