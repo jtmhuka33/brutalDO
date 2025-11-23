@@ -9,14 +9,13 @@ import { Platform } from "react-native";
 import * as SystemUI from "expo-system-ui";
 import * as NavigationBar from "expo-navigation-bar";
 
-// Updated to match tailwind.config.js
 const COLORS = {
     light: {
         background: "#FFF8F0", // neo.bg
         statusBar: "dark",
     },
     dark: {
-        background: "#050505", // neo.dark
+        background: "#0A0A0A", // neo.dark
         statusBar: "light",
     },
 };

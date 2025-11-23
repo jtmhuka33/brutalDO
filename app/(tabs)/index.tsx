@@ -8,7 +8,16 @@ import {
     KeyboardAvoidingView,
     Platform,
     useColorScheme,
+    Keyboard,
+    TouchableWithoutFeedback,
 } from "react-native";
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+    FadeIn,
+    BounceIn,
+} from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -36,7 +45,9 @@ type FilterType = "ALL" | "TODO" | "DONE";
 const STORAGE_KEY = "@neo_brutal_todos_v2";
 
 // Cycle through these for new items
-const CARD_COLORS_COUNT = 5;
+const CARD_COLORS_COUNT = 6;
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function TodoApp() {
     const [text, setText] = useState("");
@@ -44,6 +55,13 @@ export default function TodoApp() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>("ALL");
     const colorScheme = useColorScheme();
+
+    // Button animation
+    const buttonScale = useSharedValue(1);
+
+    const buttonAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: buttonScale.value }],
+    }));
 
     // Load Todos on Mount
     useEffect(() => {
@@ -74,6 +92,22 @@ export default function TodoApp() {
 
     const handleAddOrUpdate = () => {
         if (!text.trim()) return;
+
+        // Dismiss keyboard
+        Keyboard.dismiss();
+
+        // Button bounce animation
+        buttonScale.value = withSpring(0.85, {
+            damping: 10,
+            stiffness: 400,
+        });
+
+        setTimeout(() => {
+            buttonScale.value = withSpring(1, {
+                damping: 8,
+                stiffness: 350,
+            });
+        }, 150);
 
         if (editingId) {
             // Edit existing
@@ -122,75 +156,92 @@ export default function TodoApp() {
     }, [todos, filter]);
 
     return (
-        <View className="flex-1 bg-neo-bg px-5 pt-20 dark:bg-neo-dark">
-            <StatusBar style="auto" />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark">
+                <StatusBar style="auto" />
 
-            {/* Header */}
-            <View className="mb-8">
-                <Text className="text-6xl font-black uppercase tracking-tighter text-black dark:text-white">
-                    Brutal
-                    <Text className="text-neo-primary underline decoration-4 decoration-black dark:decoration-white">Do</Text>
-                    <Text className="text-neo-secondary">.</Text>
-                </Text>
-            </View>
-
-            {/* Filter Tabs */}
-            <FilterTabs activeFilter={filter} onFilterChange={setFilter} />
-
-            {/* Input Area */}
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                className="mb-6 flex-row gap-4"
-            >
-                <TextInput
-                    value={text}
-                    onChangeText={setText}
-                    placeholder={editingId ? "EDIT TASK..." : "WHAT NEEDS DOING?"}
-                    placeholderTextColor={colorScheme === 'dark' ? "#666" : "#888"}
-                    className="flex-1 border-4 border-black bg-white p-4 font-black text-lg text-black shadow-brutal dark:border-white dark:bg-zinc-900 dark:text-white dark:shadow-brutal-dark"
-                />
-                <TouchableOpacity
-                    onPress={handleAddOrUpdate}
-                    activeOpacity={0.8}
-                    className={cn(
-                        "items-center justify-center border-4 border-black px-6 shadow-brutal active:translate-x-[5px] active:translate-y-[5px] active:shadow-none dark:border-white dark:shadow-brutal-dark",
-                        editingId ? "bg-neo-secondary" : "bg-neo-accent"
-                    )}
+                {/* Header - More aggressive typography */}
+                <Animated.View
+                    entering={FadeIn.duration(400).springify()}
+                    className="mb-10"
                 >
-                    <Ionicons
-                        name={editingId ? "save-sharp" : "add-sharp"}
-                        size={32}
-                        color="black"
-                    />
-                </TouchableOpacity>
-            </KeyboardAvoidingView>
-
-            {/* List */}
-            <FlatList
-                data={filteredTodos}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item, index }) => (
-                    <TodoItem
-                        item={item}
-                        index={index}
-                        onToggle={toggleComplete}
-                        onEdit={startEditing}
-                        onDelete={deleteTodo}
-                    />
-                )}
-                contentContainerClassName="pb-24"
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                    <View className="mt-10 items-center justify-center border-4 border-dashed border-gray-300 p-10 dark:border-gray-700">
-                        <Text className="text-2xl font-black text-gray-400 dark:text-gray-600">
-                            {filter === 'TODO' ? "ALL CLEAR" : "NOTHING HERE"}
+                    <Text className="text-7xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight">
+                        Brutal
+                    </Text>
+                    <View className="flex-row items-center">
+                        <Text className="text-7xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-white leading-tight">
+                            Do
                         </Text>
-                        <Text className="font-bold text-gray-400 dark:text-gray-600">
-                            {filter === 'TODO' ? "(Go relax)" : "(Get to work)"}
-                        </Text>
+                        <View className="h-4 w-4 bg-neo-accent border-4 border-black ml-2 rotate-45 dark:border-white" />
                     </View>
-                }
-            />
-        </View>
+                </Animated.View>
+
+                {/* Filter Tabs */}
+                <FilterTabs activeFilter={filter} onFilterChange={setFilter} />
+
+                {/* Input Area - More brutal */}
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    className="mb-8 flex-row gap-4"
+                >
+                    <TextInput
+                        value={text}
+                        onChangeText={setText}
+                        placeholder={editingId ? "EDIT TASK..." : "WHAT'S THE TASK?!"}
+                        placeholderTextColor={colorScheme === 'dark' ? "#555" : "#999"}
+                        className="flex-1 border-5 border-black bg-white p-5 font-black text-lg text-black shadow-brutal dark:border-white dark:bg-zinc-900 dark:text-white dark:shadow-brutal-dark uppercase"
+                        returnKeyType="done"
+                        onSubmitEditing={handleAddOrUpdate}
+                        submitBehavior='blurAndSubmit'
+                    />
+                    <AnimatedTouchableOpacity
+                        onPress={handleAddOrUpdate}
+                        style={buttonAnimatedStyle}
+                        activeOpacity={0.9}
+                        className={cn(
+                            "items-center justify-center border-5 border-black px-7 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-white dark:shadow-brutal-dark",
+                            editingId ? "bg-neo-secondary" : "bg-neo-accent"
+                        )}
+                    >
+                        <Ionicons
+                            name={editingId ? "save-sharp" : "add-sharp"}
+                            size={36}
+                            color="black"
+                        />
+                    </AnimatedTouchableOpacity>
+                </KeyboardAvoidingView>
+
+                {/* List */}
+                <FlatList
+                    data={filteredTodos}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item, index }) => (
+                        <TodoItem
+                            item={item}
+                            index={index}
+                            onToggle={toggleComplete}
+                            onEdit={startEditing}
+                            onDelete={deleteTodo}
+                        />
+                    )}
+                    contentContainerClassName="pb-24"
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    ListEmptyComponent={
+                        <Animated.View
+                            entering={BounceIn.duration(500).springify().damping(12)}
+                            className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-gray-600 rotate-2"
+                        >
+                            <Text className="text-3xl font-black text-gray-500 dark:text-gray-600 uppercase tracking-tight">
+                                {filter === 'TODO' ? "ALL CLEAR!" : "NOTHING YET"}
+                            </Text>
+                            <Text className="font-black text-gray-500 dark:text-gray-600 uppercase text-sm mt-2">
+                                {filter === 'TODO' ? "(Chill time)" : "(Add a task!)"}
+                            </Text>
+                        </Animated.View>
+                    }
+                />
+            </View>
+        </TouchableWithoutFeedback>
     );
 }
