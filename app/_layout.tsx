@@ -9,14 +9,14 @@ import { Platform } from "react-native";
 import * as SystemUI from "expo-system-ui";
 import * as NavigationBar from "expo-navigation-bar";
 
-// Define your theme colors from tailwind.config.js
+// Updated to match tailwind.config.js
 const COLORS = {
     light: {
-        background: "#E0E7F1", // neo.bg
+        background: "#FFF8F0", // neo.bg
         statusBar: "dark",
     },
     dark: {
-        background: "#1a1a1a", // neo.dark
+        background: "#050505", // neo.dark
         statusBar: "light",
     },
 };
@@ -28,19 +28,13 @@ export default function RootLayout() {
 
     useEffect(() => {
         if (Platform.OS === "android") {
-            // 1. Set Root View Background (prevents white flash on startup/rotation)
             SystemUI.setBackgroundColorAsync(theme.background);
-
-            // 2. Color the bottom navigation bar to match the app background
             NavigationBar.setBackgroundColorAsync(theme.background);
-
-            // 3. Ensure icons in the bottom bar contrast correctly
             NavigationBar.setButtonStyleAsync(isDark ? "light" : "dark");
         }
-    }, [isDark]);
+    }, [isDark, theme]);
 
     return (
-        // Apply background color here to cover the notch/edge areas seamlessly
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
             <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
                 <Stack screenOptions={{
@@ -49,7 +43,6 @@ export default function RootLayout() {
                 }}>
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 </Stack>
-                {/* Explicitly set status bar style for better control */}
                 <StatusBar style={isDark ? "light" : "dark"} />
             </ThemeProvider>
         </SafeAreaView>
