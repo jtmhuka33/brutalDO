@@ -29,21 +29,32 @@ export default function FilterTabs({ activeFilter, onFilterChange }: FilterTabsP
                     <Pressable
                         key={f.value}
                         onPress={() => onFilterChange(f.value)}
-                        className={cn(
-                            "flex-1 items-center justify-center border-4 border-black py-3 transition-all",
-                            isActive
-                                ? "bg-neo-accent translate-x-[4px] translate-y-[4px] shadow-none dark:bg-neo-primary"
-                                : "bg-white shadow-brutal active:translate-x-[2px] active:translate-y-[2px] active:shadow-brutal-sm dark:bg-zinc-900 dark:shadow-brutal-dark"
-                        )}
+                        // Keep only static layout classes on the Pressable to avoid the NativeWind/Router crash
+                        className="flex-1"
                     >
-                        <Text
-                            className={cn(
-                                "font-black uppercase tracking-widest",
-                                isActive ? "text-black dark:text-white" : "text-gray-500 dark:text-gray-400"
-                            )}
-                        >
-                            {f.label}
-                        </Text>
+                        {({ pressed }) => (
+                            <View
+                                className={cn(
+                                    "items-center justify-center border-4 border-black py-3 transition-all",
+                                    // Apply Active (Selected) Styles
+                                    isActive
+                                        ? "bg-neo-accent translate-x-[4px] translate-y-[4px] shadow-none dark:bg-neo-primary"
+                                        : "bg-white shadow-brutal dark:bg-zinc-900 dark:shadow-brutal-dark",
+                                    // Apply Pressed (Interacting) Styles manually
+                                    // We use the 'pressed' prop to trigger the style change on the View
+                                    pressed && !isActive && "translate-x-[2px] translate-y-[2px] shadow-brutal-sm"
+                                )}
+                            >
+                                <Text
+                                    className={cn(
+                                        "font-black uppercase tracking-widest",
+                                        isActive ? "text-black dark:text-white" : "text-gray-500 dark:text-gray-400"
+                                    )}
+                                >
+                                    {f.label}
+                                </Text>
+                            </View>
+                        )}
                     </Pressable>
                 );
             })}
