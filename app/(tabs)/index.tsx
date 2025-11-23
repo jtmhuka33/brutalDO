@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, {useEffect, useState, useMemo} from "react";
 import {
     View,
     Text,
@@ -19,10 +19,10 @@ import Animated, {
     BounceIn,
 } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { StatusBar } from "expo-status-bar";
-import { Ionicons } from "@expo/vector-icons";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import {StatusBar} from "expo-status-bar";
+import {Ionicons} from "@expo/vector-icons";
+import {clsx} from "clsx";
+import {twMerge} from "tailwind-merge";
 
 import TodoItem from "@/components/TodoItem";
 import FilterTabs from "@/components/FilterTabs";
@@ -60,7 +60,7 @@ export default function TodoApp() {
     const buttonScale = useSharedValue(1);
 
     const buttonAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: buttonScale.value }],
+        transform: [{scale: buttonScale.value}],
     }));
 
     // Load Todos on Mount
@@ -112,7 +112,7 @@ export default function TodoApp() {
         if (editingId) {
             // Edit existing
             setTodos((prev) =>
-                prev.map((t) => (t.id === editingId ? { ...t, text: text.trim() } : t))
+                prev.map((t) => (t.id === editingId ? {...t, text: text.trim()} : t))
             );
             setEditingId(null);
         } else {
@@ -130,7 +130,7 @@ export default function TodoApp() {
 
     const toggleComplete = (id: string) => {
         setTodos((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+            prev.map((t) => (t.id === id ? {...t, completed: !t.completed} : t))
         );
     };
 
@@ -158,26 +158,26 @@ export default function TodoApp() {
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark">
-                <StatusBar style="auto" />
+                <StatusBar style="auto"/>
 
                 {/* Header - More aggressive typography */}
                 <Animated.View
                     entering={FadeIn.duration(400).springify()}
-                    className="mb-10"
+                    className="mb-10 flex flex-row items-center justify-center gap-4"
                 >
-                    <Text className="text-7xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight">
+                    <Text
+                        className="text-5xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight">
                         Brutal
                     </Text>
-                    <View className="flex-row items-center">
-                        <Text className="text-7xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-white leading-tight">
-                            Do
-                        </Text>
-                        <View className="h-4 w-4 bg-neo-accent border-4 border-black ml-2 rotate-45 dark:border-white" />
-                    </View>
+                    <View className="h-4 w-4 bg-neo-accent border-4 border-black rotate-45 dark:border-white" />
+                    <Text
+                        className="text-5xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-white leading-tight">
+                        Do
+                    </Text>
                 </Animated.View>
 
                 {/* Filter Tabs */}
-                <FilterTabs activeFilter={filter} onFilterChange={setFilter} />
+                <FilterTabs activeFilter={filter} onFilterChange={setFilter}/>
 
                 {/* Input Area - More brutal */}
                 <KeyboardAvoidingView
@@ -215,7 +215,7 @@ export default function TodoApp() {
                 <FlatList
                     data={filteredTodos}
                     keyExtractor={(item) => item.id}
-                    renderItem={({ item, index }) => (
+                    renderItem={({item, index}) => (
                         <TodoItem
                             item={item}
                             index={index}
@@ -232,7 +232,8 @@ export default function TodoApp() {
                             entering={BounceIn.duration(500).springify().damping(12)}
                             className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-gray-600 rotate-2"
                         >
-                            <Text className="text-3xl font-black text-gray-500 dark:text-gray-600 uppercase tracking-tight">
+                            <Text
+                                className="text-3xl font-black text-gray-500 dark:text-gray-600 uppercase tracking-tight">
                                 {filter === 'TODO' ? "ALL CLEAR!" : "NOTHING YET"}
                             </Text>
                             <Text className="font-black text-gray-500 dark:text-gray-600 uppercase text-sm mt-2">
