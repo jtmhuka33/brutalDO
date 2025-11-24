@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
+import ZenModeButton from "@/components/ZenModeButton";
 import {
     View,
     Text,
@@ -253,17 +254,22 @@ export default function TodoApp() {
                 {/* Header - More aggressive typography */}
                 <Animated.View
                     entering={FadeIn.duration(400).springify()}
-                    className="mb-10 flex flex-row items-center justify-center gap-4"
+                    className="mb-10 flex flex-row items-center justify-between"
                 >
-                    <Text
-                        className="text-5xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight">
-                        Brutal
-                    </Text>
-                    <View className="h-4 w-4 bg-neo-accent border-4 border-black rotate-45 dark:border-white" />
-                    <Text
-                        className="text-5xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-white leading-tight">
-                        Do
-                    </Text>
+                    <View className="flex-row items-center gap-4">
+                        <Text
+                            className="text-5xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight">
+                            Brutal
+                        </Text>
+                        <View className="h-4 w-4 bg-neo-accent border-4 border-black rotate-45 dark:border-white" />
+                        <Text
+                            className="text-5xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-white leading-tight">
+                            Do
+                        </Text>
+                    </View>
+
+                    {/* Zen Mode Button */}
+                    <ZenModeButton />
                 </Animated.View>
 
                 {/* Filter Tabs */}
