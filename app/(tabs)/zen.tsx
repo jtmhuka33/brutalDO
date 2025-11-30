@@ -59,10 +59,6 @@ export default function ZenMode() {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
-    const handleSessionChange = async (increment: boolean) => {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    };
-
     const handleStartZen = async () => {
         if (!selectedTodo) return;
         setTimerStarted(true);

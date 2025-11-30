@@ -20,7 +20,6 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 interface PomodoroTimerProps {
     selectedTask: string;
     taskId: string;
-    totalSessions: number;
     onComplete: () => void;
     onCompleteTask: (taskId: string) => void;
 }
@@ -42,6 +41,7 @@ export default function PomodoroTimer({
     const [timeLeft, setTimeLeft] = useState(WORK_TIME);
     const [isRunning, setIsRunning] = useState(false);
     const [timerState, setTimerState] = useState<TimerState>("work");
+    const [sessionsCompleted, setSessionsCompleted] = useState(0);
     const [notificationId, setNotificationId] = useState<string | null>(null);
 
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -173,36 +173,22 @@ export default function PomodoroTimer({
 
         if (timerState === "work") {
             // Work session completed
-            if (currentSession >= totalSessions) {
-                // All sessions complete!
-                Alert.alert(
-                    "🎉 Congratulations!",
-                    `You completed all ${totalSessions} Pomodoro sessions!`,
-                    [
-                        {
-                            text: "Awesome!",
-                            onPress: onComplete,
-                        },
-                    ]
-                );
-            } else {
-                // Move to break
-                const isLongBreak = currentSession % 4 === 0;
-                const nextState = isLongBreak ? "longBreak" : "shortBreak";
-                setTimerState(nextState);
-                setTimeLeft(getTimerDuration(nextState));
+            const newSessionsCompleted = sessionsCompleted + 1;
+            setSessionsCompleted(newSessionsCompleted);
 
-                Alert.alert(
-                    "Great work! 💪",
-                    `Session ${currentSession} complete. Time for a ${
-                        isLongBreak ? "long" : "short"
-                    } break!`,
-                    [{ text: "OK" }]
-                );
-            }
+            // Every 4th session gets a long break
+            const isLongBreak = newSessionsCompleted % 4 === 0;
+            const nextState = isLongBreak ? "longBreak" : "shortBreak";
+            setTimerState(nextState);
+            setTimeLeft(getTimerDuration(nextState));
+
+            Alert.alert(
+                "Great work! 💪",
+                `Time for a ${isLongBreak ? "long" : "short"} break!`,
+                [{ text: "OK" }]
+            );
         } else {
             // Break completed - start next work session
-            setCurrentSession((prev) => prev + 1);
             setTimerState("work");
             setTimeLeft(WORK_TIME);
 
@@ -234,7 +220,6 @@ export default function PomodoroTimer({
                         setIsRunning(false);
                         setTimerState("work");
                         setTimeLeft(WORK_TIME);
-                        setCurrentSession(1);
                         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                     },
                 },
@@ -292,19 +277,30 @@ export default function PomodoroTimer({
         }
     };
 
+    const getStateLabel = () => {
+        switch (timerState) {
+            case "work":
+                return "Focus Time";
+            case "shortBreak":
+                return "Short Break";
+            case "longBreak":
+                return "Long Break";
+        }
+    };
+
     return (
         <ScrollView
             className="flex-1"
             contentContainerStyle={{ gap: 32, paddingBottom: 16 }}
             showsVerticalScrollIndicator={false}
         >
-            {/* Session Counter */}
-            <View className="items-center justify-center border-5 border-black bg-white p-4 shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark">
-                <Text className="text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">
-                    Session
-                </Text>
-                <Text className="text-4xl font-black uppercase text-black dark:text-white">
-                    {currentSession} / {totalSessions}
+            {/* Timer State Label */}
+            <View className={cn(
+                "items-center justify-center border-5 border-black p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark",
+                getStateColor()
+            )}>
+                <Text className="text-lg font-black uppercase tracking-widest text-white">
+                    {getStateLabel()}
                 </Text>
             </View>
 
