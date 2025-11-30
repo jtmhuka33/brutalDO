@@ -28,6 +28,7 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import * as Notifications from "expo-notifications";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 
 import TodoItem from "@/components/TodoItem";
 import FilterTabs from "@/components/FilterTabs";
@@ -95,24 +96,26 @@ export default function TodoApp() {
         };
     }, []);
 
-    // Load Todos on Mount
-    useEffect(() => {
-        loadTodos();
-    }, []);
-
-    // Save Todos whenever they change
-    useEffect(() => {
-        saveTodos(todos);
-    }, [todos]);
-
-    const loadTodos = async () => {
+    const loadTodos = useCallback(async () => {
         try {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) setTodos(JSON.parse(stored));
         } catch (e) {
             console.error("Failed to load todos");
         }
-    };
+    }, []);
+
+    // Reload todos when screen is focused (handles returning from Zen mode)
+    useFocusEffect(
+        useCallback(() => {
+            loadTodos();
+        }, [loadTodos])
+    );
+
+    // Save Todos whenever they change
+    useEffect(() => {
+        saveTodos(todos);
+    }, [todos]);
 
     const saveTodos = async (newTodos: Todo[]) => {
         try {
