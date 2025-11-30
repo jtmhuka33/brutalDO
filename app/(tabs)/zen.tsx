@@ -4,8 +4,6 @@ import {
     Text,
     Pressable,
     ScrollView,
-    KeyboardAvoidingView,
-    Platform,
     TouchableWithoutFeedback,
     Keyboard,
 } from "react-native";
@@ -18,8 +16,11 @@ import * as Haptics from "expo-haptics";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import { Todo } from "@/types/todo";
+import { cancelNotification } from "@/utils/notifications";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -29,14 +30,17 @@ const STORAGE_KEY = "@neo_brutal_todos_v2";
 
 export default function ZenMode() {
     const [todos, setTodos] = useState<Todo[]>([]);
-    const [selectedTask, setSelectedTask] = useState<string | null>(null);
+    const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
     const [sessionCount, setSessionCount] = useState(4);
     const [timerStarted, setTimerStarted] = useState(false);
     const insets = useSafeAreaInsets();
 
-    useEffect(() => {
-        loadTodos();
-    }, []);
+    // Reload todos when screen is focused
+    useFocusEffect(
+        useCallback(() => {
+            loadTodos();
+        }, [])
+    );
 
     const loadTodos = async () => {
         try {
@@ -51,8 +55,8 @@ export default function ZenMode() {
         }
     };
 
-    const handleTaskSelect = async (task: string) => {
-        setSelectedTask(task);
+    const handleTaskSelect = async (todo: Todo) => {
+        setSelectedTodo(todo);
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
@@ -65,14 +69,46 @@ export default function ZenMode() {
     };
 
     const handleStartZen = async () => {
-        if (!selectedTask) return;
+        if (!selectedTodo) return;
         setTimerStarted(true);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
     const handleComplete = async () => {
         setTimerStarted(false);
-        setSelectedTask(null);
+        setSelectedTodo(null);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    };
+
+    const handleCompleteTask = async (taskId: string) => {
+        try {
+            const stored = await AsyncStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const allTodos: Todo[] = JSON.parse(stored);
+
+                // Find the todo and cancel its notification if exists
+                const todo = allTodos.find((t) => t.id === taskId);
+                if (todo?.notificationId) {
+                    await cancelNotification(todo.notificationId);
+                }
+
+                // Mark the task as completed
+                const updatedTodos = allTodos.map((t) =>
+                    t.id === taskId ? { ...t, completed: true } : t
+                );
+
+                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTodos));
+
+                // Update local state
+                setTodos(updatedTodos.filter((t) => !t.completed));
+            }
+        } catch (e) {
+            console.error("Failed to complete todo");
+        }
+
+        // Reset timer state and go back to task selection
+        setTimerStarted(false);
+        setSelectedTodo(null);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
@@ -80,9 +116,12 @@ export default function ZenMode() {
         router.back();
     };
 
-    if (timerStarted && selectedTask) {
+    if (timerStarted && selectedTodo) {
         return (
-            <View className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark">
+            <View
+                className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark"
+                style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+            >
                 <StatusBar style="auto" />
 
                 {/* Back Button */}
@@ -94,9 +133,11 @@ export default function ZenMode() {
                 </Pressable>
 
                 <PomodoroTimer
-                    selectedTask={selectedTask}
+                    selectedTask={selectedTodo.text}
+                    taskId={selectedTodo.id}
                     totalSessions={sessionCount}
                     onComplete={handleComplete}
+                    onCompleteTask={handleCompleteTask}
                 />
             </View>
         );
@@ -224,10 +265,10 @@ export default function ZenMode() {
                                 {todos.map((todo, index) => (
                                     <Pressable
                                         key={todo.id}
-                                        onPress={() => handleTaskSelect(todo.text)}
+                                        onPress={() => handleTaskSelect(todo)}
                                         className={cn(
                                             "border-5 border-black p-5 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                                            selectedTask === todo.text
+                                            selectedTodo?.id === todo.id
                                                 ? "bg-neo-primary"
                                                 : "bg-white dark:bg-neo-dark-surface",
                                             index % 3 === 0 && "-rotate-1",
@@ -238,12 +279,12 @@ export default function ZenMode() {
                                             <View
                                                 className={cn(
                                                     "h-8 w-8 items-center justify-center border-4 border-black dark:border-neo-primary",
-                                                    selectedTask === todo.text
+                                                    selectedTodo?.id === todo.id
                                                         ? "bg-white dark:bg-neo-dark-surface"
                                                         : "bg-white dark:bg-neo-dark-surface"
                                                 )}
                                             >
-                                                {selectedTask === todo.text && (
+                                                {selectedTodo?.id === todo.id && (
                                                     <Ionicons
                                                         name="checkmark-sharp"
                                                         size={20}
@@ -254,7 +295,7 @@ export default function ZenMode() {
                                             <Text
                                                 className={cn(
                                                     "flex-1 text-lg font-black uppercase tracking-tight",
-                                                    selectedTask === todo.text
+                                                    selectedTodo?.id === todo.id
                                                         ? "text-white"
                                                         : "text-black dark:text-white"
                                                 )}
@@ -272,10 +313,10 @@ export default function ZenMode() {
                     <Animated.View entering={FadeIn.delay(400).duration(400)}>
                         <Pressable
                             onPress={handleStartZen}
-                            disabled={!selectedTask}
+                            disabled={!selectedTodo}
                             className={cn(
                                 "items-center justify-center border-5 border-black p-8 shadow-brutal-lg active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-lg",
-                                selectedTask
+                                selectedTodo
                                     ? "bg-neo-primary"
                                     : "bg-gray-300 dark:bg-neo-dark-surface"
                             )}
@@ -283,12 +324,12 @@ export default function ZenMode() {
                             <Text
                                 className={cn(
                                     "text-3xl font-black uppercase tracking-tight",
-                                    selectedTask ? "text-white" : "text-gray-500"
+                                    selectedTodo ? "text-white" : "text-gray-500"
                                 )}
                             >
                                 Start Zen Mode
                             </Text>
-                            {selectedTask && (
+                            {selectedTodo && (
                                 <Text className="mt-2 text-sm font-black uppercase text-white">
                                     Let's focus! 🧘
                                 </Text>

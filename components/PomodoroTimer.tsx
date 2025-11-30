@@ -9,8 +9,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleNotification, cancelNotification } from "@/utils/notifications";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
@@ -21,8 +19,10 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 
 interface PomodoroTimerProps {
     selectedTask: string;
+    taskId: string;
     totalSessions: number;
     onComplete: () => void;
+    onCompleteTask: (taskId: string) => void;
 }
 
 const WORK_TIME = 25 * 60; // 25 minutes in seconds
@@ -35,8 +35,10 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function PomodoroTimer({
                                           selectedTask,
+                                          taskId,
                                           totalSessions,
                                           onComplete,
+                                          onCompleteTask,
                                       }: PomodoroTimerProps) {
     const [timeLeft, setTimeLeft] = useState(WORK_TIME);
     const [isRunning, setIsRunning] = useState(false);
@@ -47,10 +49,14 @@ export default function PomodoroTimer({
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const startTimeRef = useRef<number | null>(null);
     const appState = useRef(AppState.currentState);
-    const insets = useSafeAreaInsets();
 
     const scale = useSharedValue(1);
     const progress = useSharedValue(1);
+    const completeButtonScale = useSharedValue(1);
+
+    const completeButtonAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: completeButtonScale.value }],
+    }));
 
     useEffect(() => {
         const subscription = AppState.addEventListener("change", handleAppStateChange);
@@ -238,6 +244,31 @@ export default function PomodoroTimer({
         );
     };
 
+    const handleCompleteTaskPress = () => {
+        Alert.alert(
+            "Complete Task?",
+            "This will mark the task as done and return to task selection.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Complete",
+                    onPress: async () => {
+                        // Stop timer if running
+                        if (intervalRef.current) {
+                            clearInterval(intervalRef.current);
+                            intervalRef.current = null;
+                        }
+                        if (notificationId) {
+                            await cancelNotification(notificationId);
+                        }
+                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        onCompleteTask(taskId);
+                    },
+                },
+            ]
+        );
+    };
+
     const formatTime = (seconds: number): string => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -263,25 +294,10 @@ export default function PomodoroTimer({
         }
     };
 
-    const getStateText = () => {
-        switch (timerState) {
-            case "work":
-                return "FOCUS TIME";
-            case "shortBreak":
-                return "SHORT BREAK";
-            case "longBreak":
-                return "LONG BREAK";
-        }
-    };
-
     return (
         <ScrollView
             className="flex-1"
-            contentContainerStyle={{
-                gap: 32,
-                paddingBottom: Math.max(insets.bottom, 24) + 24,
-                flexGrow: 1,
-            }}
+            contentContainerStyle={{ gap: 32, paddingBottom: 16 }}
             showsVerticalScrollIndicator={false}
         >
             {/* Session Counter */}
@@ -300,14 +316,49 @@ export default function PomodoroTimer({
                     {formatTime(timeLeft)}
                 </Text>
             </View>
-            {/* Task Display */}
-            <View className="border-5 border-black bg-neo-secondary p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark">
-                <Text className="text-xs font-black uppercase tracking-widest text-black">
-                    Current Task
-                </Text>
-                <Text className="mt-2 text-lg font-black uppercase text-black">
-                    {selectedTask}
-                </Text>
+
+            {/* Progress Bar */}
+            <View className="h-8 overflow-hidden border-5 border-black bg-white shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm">
+                <Animated.View
+                    style={progressStyle}
+                    className={cn("h-full", getStateColor())}
+                />
+            </View>
+
+            {/* Task Display with Complete Button */}
+            <View className="flex-row gap-4">
+                <View className="flex-1 border-5 border-black bg-neo-secondary p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark">
+                    <Text className="text-xs font-black uppercase tracking-widest text-black">
+                        Current Task
+                    </Text>
+                    <Text className="mt-2 text-lg font-black uppercase text-black">
+                        {selectedTask}
+                    </Text>
+                </View>
+
+                {/* Complete Task Button */}
+                <AnimatedPressable
+                    onPress={handleCompleteTaskPress}
+                    onPressIn={() => {
+                        completeButtonScale.value = withSpring(0.92, {
+                            damping: 12,
+                            stiffness: 400,
+                        });
+                    }}
+                    onPressOut={() => {
+                        completeButtonScale.value = withSpring(1, {
+                            damping: 10,
+                            stiffness: 350,
+                        });
+                    }}
+                    style={completeButtonAnimatedStyle}
+                    className="items-center justify-center border-5 border-black bg-neo-green p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
+                >
+                    <Ionicons name="checkmark-done-sharp" size={28} color="black" />
+                    <Text className="mt-1 text-xs font-black uppercase tracking-tight text-black">
+                        Done
+                    </Text>
+                </AnimatedPressable>
             </View>
 
             {/* Controls */}
