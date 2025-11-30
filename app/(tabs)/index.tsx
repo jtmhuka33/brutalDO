@@ -57,8 +57,8 @@ export default function TodoApp() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>("ALL");
     const colorScheme = useColorScheme();
-    const notificationListener = useRef<Notifications.EventSubscription>();
-    const responseListener = useRef<Notifications.EventSubscription>();
+    const notificationListener = useRef<Notifications.Subscription | null>(null);
+    const responseListener = useRef<Notifications.Subscription | null>(null);
     const insets = useSafeAreaInsets();
 
     // Button animation
@@ -85,14 +85,9 @@ export default function TodoApp() {
             });
 
         return () => {
-            if (notificationListener.current) {
-                Notifications.removeNotificationSubscription(
-                    notificationListener.current
-                );
-            }
-            if (responseListener.current) {
-                Notifications.removeNotificationSubscription(responseListener.current);
-            }
+            // Use .remove() method on the subscription object directly
+            notificationListener.current?.remove();
+            responseListener.current?.remove();
         };
     }, []);
 
