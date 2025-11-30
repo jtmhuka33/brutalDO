@@ -82,10 +82,7 @@ export default function ZenMode() {
 
     if (timerStarted && selectedTask) {
         return (
-            <View
-                className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark"
-                style={{ paddingBottom: Math.max(insets.bottom, 16) }}
-            >
+            <View className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark">
                 <StatusBar style="auto" />
 
                 {/* Back Button */}

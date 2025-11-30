@@ -10,6 +10,7 @@ import Animated, {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleNotification, cancelNotification } from "@/utils/notifications";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
@@ -46,6 +47,7 @@ export default function PomodoroTimer({
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const startTimeRef = useRef<number | null>(null);
     const appState = useRef(AppState.currentState);
+    const insets = useSafeAreaInsets();
 
     const scale = useSharedValue(1);
     const progress = useSharedValue(1);
@@ -275,7 +277,11 @@ export default function PomodoroTimer({
     return (
         <ScrollView
             className="flex-1"
-            contentContainerStyle={{ gap: 32, paddingBottom: 16 }}
+            contentContainerStyle={{
+                gap: 32,
+                paddingBottom: Math.max(insets.bottom, 24) + 24,
+                flexGrow: 1,
+            }}
             showsVerticalScrollIndicator={false}
         >
             {/* Session Counter */}
@@ -294,15 +300,6 @@ export default function PomodoroTimer({
                     {formatTime(timeLeft)}
                 </Text>
             </View>
-
-            {/* Progress Bar */}
-            <View className="h-8 overflow-hidden border-5 border-black bg-white shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm">
-                <Animated.View
-                    style={progressStyle}
-                    className={cn("h-full", getStateColor())}
-                />
-            </View>
-
             {/* Task Display */}
             <View className="border-5 border-black bg-neo-secondary p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark">
                 <Text className="text-xs font-black uppercase tracking-widest text-black">
