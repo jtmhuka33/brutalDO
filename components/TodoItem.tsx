@@ -1,12 +1,15 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View, Text, TouchableOpacity, Pressable, useColorScheme } from "react-native";
 import Animated, {
     FadeInDown,
     Layout,
     SlideOutRight,
     withSpring,
+    withSequence,
+    withDelay,
     useAnimatedStyle,
     useSharedValue,
+    runOnJS,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { twMerge } from "tailwind-merge";
@@ -62,32 +65,63 @@ export default function TodoItem({
         ],
     }));
 
-    const handlePress = () => {
-        // Quick, snappy bounce
-        scale.value = withSpring(0.95, {
-            damping: 15,
-            stiffness: 400,
-        });
+    const handleToggle = useCallback(() => {
+        onToggle(item.id);
+    }, [onToggle, item.id]);
 
-        setTimeout(() => {
-            scale.value = withSpring(1, {
+    const handlePress = useCallback(() => {
+        // Quick, snappy bounce using withSequence instead of setTimeout
+        scale.value = withSequence(
+            withSpring(0.95, {
+                damping: 15,
+                stiffness: 400,
+            }),
+            withSpring(1, {
                 damping: 12,
                 stiffness: 350,
-            });
-        }, 100);
+            })
+        );
 
-        onToggle(item.id);
-    };
+        runOnJS(handleToggle)();
+    }, [handleToggle]);
 
-    const handleSetReminder = (date: Date) => {
+    const handleEditPress = useCallback(() => {
+        rotation.value = withSequence(
+            withSpring(-5, {
+                damping: 10,
+                stiffness: 300,
+            }),
+            withSpring(0, {
+                damping: 10,
+                stiffness: 300,
+            })
+        );
+        // Delay the edit callback slightly
+        runOnJS(onEdit)(item);
+    }, [onEdit, item]);
+
+    const handleDeletePress = useCallback(() => {
+        rotation.value = withSpring(5, {
+            damping: 10,
+            stiffness: 300,
+        });
+        // Use withDelay pattern for the delete
+        runOnJS(onDelete)(item.id);
+    }, [onDelete, item.id]);
+
+    const handleSetReminder = useCallback((date: Date) => {
         onSetReminder(item.id, date);
         setShowReminderPicker(false);
-    };
+    }, [onSetReminder, item.id]);
 
-    const handleClearReminder = () => {
+    const handleClearReminder = useCallback(() => {
         onClearReminder(item.id);
         setShowReminderPicker(false);
-    };
+    }, [onClearReminder, item.id]);
+
+    const toggleReminderPicker = useCallback(() => {
+        setShowReminderPicker(prev => !prev);
+    }, []);
 
     return (
         <Animated.View
@@ -152,7 +186,7 @@ export default function TodoItem({
                 {/* Action Buttons - more aggressive styling */}
                 <View className="flex-row gap-3">
                     <Pressable
-                        onPress={() => setShowReminderPicker(!showReminderPicker)}
+                        onPress={toggleReminderPicker}
                         className={cn(
                             "h-11 w-11 items-center justify-center border-5 border-black shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
                             item.reminderDate
@@ -168,34 +202,14 @@ export default function TodoItem({
                     </Pressable>
 
                     <Pressable
-                        onPress={() => {
-                            rotation.value = withSpring(-5, {
-                                damping: 10,
-                                stiffness: 300,
-                            });
-                            setTimeout(() => {
-                                rotation.value = withSpring(0, {
-                                    damping: 10,
-                                    stiffness: 300,
-                                });
-                                onEdit(item);
-                            }, 150);
-                        }}
+                        onPress={handleEditPress}
                         className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-secondary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
                     >
                         <Ionicons name="pencil-sharp" size={20} color="black" />
                     </Pressable>
 
                     <Pressable
-                        onPress={() => {
-                            rotation.value = withSpring(5, {
-                                damping: 10,
-                                stiffness: 300,
-                            });
-                            setTimeout(() => {
-                                onDelete(item.id);
-                            }, 100);
-                        }}
+                        onPress={handleDeletePress}
                         className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
                     >
                         <Ionicons name="trash-sharp" size={20} color="white" />

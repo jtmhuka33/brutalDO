@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, {
     useSharedValue,
@@ -6,10 +6,10 @@ import Animated, {
     withSpring,
     withRepeat,
     withSequence,
+    cancelAnimation,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect } from "react";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -28,6 +28,10 @@ export default function ZenModeButton() {
             -1,
             false
         );
+
+        return () => {
+            cancelAnimation(rotation);
+        };
     }, []);
 
     const animatedStyle = useAnimatedStyle(() => ({
@@ -37,23 +41,25 @@ export default function ZenModeButton() {
         ],
     }));
 
-    const handlePressIn = () => {
+    const handlePressIn = useCallback(() => {
+        'worklet';
         scale.value = withSpring(0.85, {
             damping: 12,
             stiffness: 400,
         });
-    };
+    }, []);
 
-    const handlePressOut = () => {
+    const handlePressOut = useCallback(() => {
+        'worklet';
         scale.value = withSpring(1, {
             damping: 10,
             stiffness: 350,
         });
-    };
+    }, []);
 
-    const handlePress = () => {
+    const handlePress = useCallback(() => {
         router.push("/(tabs)/zen");
-    };
+    }, []);
 
     return (
         <AnimatedPressable

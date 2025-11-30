@@ -1,13 +1,23 @@
-import {Stack} from "expo-router";
+import { Stack } from "expo-router";
 import "../global.css";
-import {useColorScheme} from "@/hooks/use-color-scheme";
-import {DarkTheme, DefaultTheme, ThemeProvider} from "@react-navigation/native";
-import {StatusBar} from "expo-status-bar";
-import {useEffect} from "react";
-import {Platform, View} from "react-native";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { Platform, View } from "react-native";
 import * as SystemUI from "expo-system-ui";
 import * as NavigationBar from "expo-navigation-bar";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+    configureReanimatedLogger,
+    ReanimatedLogLevel,
+} from "react-native-reanimated";
+
+// Configure Reanimated logger - must be called before any animations
+configureReanimatedLogger({
+    level: ReanimatedLogLevel.warn,
+    strict: false, // Disable strict mode to suppress the warnings
+});
 
 const COLORS = {
     light: {
@@ -49,9 +59,9 @@ export default function RootLayout() {
                     headerShown: false,
                     animation: 'slide_from_right'
                 }}>
-                    <Stack.Screen name="(tabs)" options={{headerShown: false}}/>
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 </Stack>
-                <StatusBar style={isDark ? "light" : "dark"}/>
+                <StatusBar style={isDark ? "light" : "dark"} />
             </ThemeProvider>
         </View>
     );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, Pressable, AppState, Alert, ScrollView } from "react-native";
 import Animated, {
     useSharedValue,
@@ -56,27 +56,26 @@ export default function PomodoroTimer({
         transform: [{ scale: completeButtonScale.value }],
     }));
 
-    useEffect(() => {
-        const subscription = AppState.addEventListener("change", handleAppStateChange);
-        return () => subscription.remove();
-    }, [isRunning, timerState]);
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
 
-    useEffect(() => {
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            if (notificationId) cancelNotification(notificationId);
-        };
+    const progressStyle = useAnimatedStyle(() => ({
+        width: `${progress.value * 100}%`,
+    }));
+
+    const getTimerDuration = useCallback((state: TimerState): number => {
+        switch (state) {
+            case "work":
+                return WORK_TIME;
+            case "shortBreak":
+                return SHORT_BREAK;
+            case "longBreak":
+                return LONG_BREAK;
+        }
     }, []);
 
-    useEffect(() => {
-        const totalTime = getTimerDuration(timerState);
-        progress.value = withTiming(timeLeft / totalTime, {
-            duration: 300,
-            easing: Easing.linear,
-        });
-    }, [timeLeft, timerState]);
-
-    const handleAppStateChange = async (nextAppState: string) => {
+    const handleAppStateChange = useCallback(async (nextAppState: string) => {
         if (
             appState.current.match(/inactive|background/) &&
             nextAppState === "active"
@@ -90,20 +89,34 @@ export default function PomodoroTimer({
                 if (newTimeLeft > 0) {
                     setTimeLeft(newTimeLeft);
                     startTimeRef.current = now;
-                } else {
-                    // Timer finished while in background
-                    await handleTimerComplete();
                 }
             }
-        } else if (nextAppState.match(/inactive|background/) && isRunning) {
-            // App going to background - schedule notification
-            await scheduleTimerNotification();
         }
 
         appState.current = nextAppState;
-    };
+    }, [isRunning, timeLeft]);
 
-    const scheduleTimerNotification = async () => {
+    useEffect(() => {
+        const subscription = AppState.addEventListener("change", handleAppStateChange);
+        return () => subscription.remove();
+    }, [handleAppStateChange]);
+
+    useEffect(() => {
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            if (notificationId) cancelNotification(notificationId);
+        };
+    }, [notificationId]);
+
+    useEffect(() => {
+        const totalTime = getTimerDuration(timerState);
+        progress.value = withTiming(timeLeft / totalTime, {
+            duration: 300,
+            easing: Easing.linear,
+        });
+    }, [timeLeft, timerState, getTimerDuration]);
+
+    const scheduleTimerNotification = useCallback(async () => {
         if (notificationId) {
             await cancelNotification(notificationId);
         }
@@ -116,53 +129,9 @@ export default function PomodoroTimer({
 
         const id = await scheduleNotification(message, finishTime);
         setNotificationId(id);
-    };
+    }, [notificationId, timeLeft, timerState]);
 
-    const getTimerDuration = (state: TimerState): number => {
-        switch (state) {
-            case "work":
-                return WORK_TIME;
-            case "shortBreak":
-                return SHORT_BREAK;
-            case "longBreak":
-                return LONG_BREAK;
-        }
-    };
-
-    const startTimer = async () => {
-        setIsRunning(true);
-        startTimeRef.current = Date.now();
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        if (appState.current !== "active") {
-            await scheduleTimerNotification();
-        }
-
-        intervalRef.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    handleTimerComplete();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    };
-
-    const pauseTimer = async () => {
-        setIsRunning(false);
-        if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-        }
-        if (notificationId) {
-            await cancelNotification(notificationId);
-            setNotificationId(null);
-        }
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    };
-
-    const handleTimerComplete = async () => {
+    const handleTimerComplete = useCallback(async () => {
         if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
@@ -198,9 +167,42 @@ export default function PomodoroTimer({
                 [{ text: "Let's go!" }]
             );
         }
-    };
+    }, [timerState, sessionsCompleted, getTimerDuration]);
 
-    const resetTimer = () => {
+    const startTimer = useCallback(async () => {
+        setIsRunning(true);
+        startTimeRef.current = Date.now();
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+        if (appState.current !== "active") {
+            await scheduleTimerNotification();
+        }
+
+        intervalRef.current = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    handleTimerComplete();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    }, [scheduleTimerNotification, handleTimerComplete]);
+
+    const pauseTimer = useCallback(async () => {
+        setIsRunning(false);
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+        if (notificationId) {
+            await cancelNotification(notificationId);
+            setNotificationId(null);
+        }
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }, [notificationId]);
+
+    const resetTimer = useCallback(() => {
         Alert.alert(
             "Reset Timer?",
             "This will reset your current session.",
@@ -225,9 +227,9 @@ export default function PomodoroTimer({
                 },
             ]
         );
-    };
+    }, [notificationId]);
 
-    const handleCompleteTaskPress = () => {
+    const handleCompleteTaskPress = useCallback(() => {
         Alert.alert(
             "Complete Task?",
             "This will mark the task as done and return to task selection.",
@@ -250,21 +252,45 @@ export default function PomodoroTimer({
                 },
             ]
         );
-    };
+    }, [notificationId, onCompleteTask, taskId]);
+
+    const handleMainButtonPressIn = useCallback(() => {
+        'worklet';
+        scale.value = withSpring(0.92, {
+            damping: 12,
+            stiffness: 400,
+        });
+    }, []);
+
+    const handleMainButtonPressOut = useCallback(() => {
+        'worklet';
+        scale.value = withSpring(1, {
+            damping: 10,
+            stiffness: 350,
+        });
+    }, []);
+
+    const handleCompleteButtonPressIn = useCallback(() => {
+        'worklet';
+        completeButtonScale.value = withSpring(0.92, {
+            damping: 12,
+            stiffness: 400,
+        });
+    }, []);
+
+    const handleCompleteButtonPressOut = useCallback(() => {
+        'worklet';
+        completeButtonScale.value = withSpring(1, {
+            damping: 10,
+            stiffness: 350,
+        });
+    }, []);
 
     const formatTime = (seconds: number): string => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     };
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
-    }));
-
-    const progressStyle = useAnimatedStyle(() => ({
-        width: `${progress.value * 100}%`,
-    }));
 
     const getStateColor = () => {
         switch (timerState) {
@@ -287,6 +313,14 @@ export default function PomodoroTimer({
                 return "Long Break";
         }
     };
+
+    const handleMainButtonPress = useCallback(() => {
+        if (isRunning) {
+            pauseTimer();
+        } else {
+            startTimer();
+        }
+    }, [isRunning, pauseTimer, startTimer]);
 
     return (
         <ScrollView
@@ -333,18 +367,8 @@ export default function PomodoroTimer({
                 {/* Complete Task Button */}
                 <AnimatedPressable
                     onPress={handleCompleteTaskPress}
-                    onPressIn={() => {
-                        completeButtonScale.value = withSpring(0.92, {
-                            damping: 12,
-                            stiffness: 400,
-                        });
-                    }}
-                    onPressOut={() => {
-                        completeButtonScale.value = withSpring(1, {
-                            damping: 10,
-                            stiffness: 350,
-                        });
-                    }}
+                    onPressIn={handleCompleteButtonPressIn}
+                    onPressOut={handleCompleteButtonPressOut}
                     style={completeButtonAnimatedStyle}
                     className="items-center justify-center border-5 border-black bg-neo-green p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
                 >
@@ -358,19 +382,9 @@ export default function PomodoroTimer({
             {/* Controls */}
             <View className="flex-row gap-4">
                 <AnimatedPressable
-                    onPress={isRunning ? pauseTimer : startTimer}
-                    onPressIn={() => {
-                        scale.value = withSpring(0.92, {
-                            damping: 12,
-                            stiffness: 400,
-                        });
-                    }}
-                    onPressOut={() => {
-                        scale.value = withSpring(1, {
-                            damping: 10,
-                            stiffness: 350,
-                        });
-                    }}
+                    onPress={handleMainButtonPress}
+                    onPressIn={handleMainButtonPressIn}
+                    onPressOut={handleMainButtonPressOut}
                     style={animatedStyle}
                     className="flex-1 items-center justify-center border-5 border-black bg-neo-primary p-6 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
                 >

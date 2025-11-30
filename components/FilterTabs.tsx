@@ -1,11 +1,12 @@
-import React from "react";
-import {View, Text, Pressable} from "react-native";
+import React, { useCallback } from "react";
+import { View, Text, Pressable } from "react-native";
 import Animated, {
     useSharedValue,
-    useAnimatedStyle, withSpring,
+    useAnimatedStyle,
+    withSpring,
 } from "react-native-reanimated";
-import {twMerge} from "tailwind-merge";
-import {clsx} from "clsx";
+import { twMerge } from "tailwind-merge";
+import { clsx } from "clsx";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -22,6 +23,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function FilterTab({
                        label,
+                       value,
                        isActive,
                        onPress,
                        rotationClass
@@ -38,13 +40,14 @@ function FilterTab({
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [
-            {scale: scale.value},
-            {translateX: translateX.value},
-            {translateY: translateY.value},
+            { scale: scale.value },
+            { translateX: translateX.value },
+            { translateY: translateY.value },
         ],
     }));
 
-    const handlePressIn = () => {
+    const handlePressIn = useCallback(() => {
+        'worklet';
         // Quick bounce down
         scale.value = withSpring(0.92, {
             damping: 12,
@@ -61,9 +64,10 @@ function FilterTab({
                 stiffness: 400,
             });
         }
-    };
+    }, [isActive]);
 
-    const handlePressOut = () => {
+    const handlePressOut = useCallback(() => {
+        'worklet';
         // Bounce back
         scale.value = withSpring(1, {
             damping: 10,
@@ -80,7 +84,7 @@ function FilterTab({
                 stiffness: 350,
             });
         }
-    };
+    }, [isActive]);
 
     return (
         <AnimatedPressable
@@ -114,11 +118,11 @@ function FilterTab({
     );
 }
 
-export default function FilterTabs({activeFilter, onFilterChange}: FilterTabsProps) {
+export default function FilterTabs({ activeFilter, onFilterChange }: FilterTabsProps) {
     const filters: { label: string; value: FilterType; rotation: string }[] = [
-        {label: "All", value: "ALL", rotation: "-rotate-1"},
-        {label: "Todo", value: "TODO", rotation: ""},
-        {label: "Done", value: "DONE", rotation: "rotate-1"},
+        { label: "All", value: "ALL", rotation: "-rotate-1" },
+        { label: "Todo", value: "TODO", rotation: "" },
+        { label: "Done", value: "DONE", rotation: "rotate-1" },
     ];
 
     return (

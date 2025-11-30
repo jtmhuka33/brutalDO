@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Text, Pressable, useColorScheme } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -35,32 +35,34 @@ export default function ReminderPicker({
         transform: [{ scale: scale.value }],
     }));
 
-    const handlePressIn = () => {
+    const handlePressIn = useCallback(() => {
+        'worklet';
         scale.value = withSpring(0.92, {
             damping: 12,
             stiffness: 400,
         });
-    };
+    }, []);
 
-    const handlePressOut = () => {
+    const handlePressOut = useCallback(() => {
+        'worklet';
         scale.value = withSpring(1, {
             damping: 10,
             stiffness: 350,
         });
-    };
+    }, []);
 
-    const showDatePicker = () => {
+    const showDatePicker = useCallback(() => {
         setDatePickerVisibility(true);
-    };
+    }, []);
 
-    const hideDatePicker = () => {
+    const hideDatePicker = useCallback(() => {
         setDatePickerVisibility(false);
-    };
+    }, []);
 
-    const handleConfirm = (date: Date) => {
+    const handleConfirm = useCallback((date: Date) => {
         onSetReminder(date);
         hideDatePicker();
-    };
+    }, [onSetReminder, hideDatePicker]);
 
     const formatReminderDate = (dateString: string) => {
         const date = new Date(dateString);

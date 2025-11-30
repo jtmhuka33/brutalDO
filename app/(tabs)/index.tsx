@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import ZenModeButton from "@/components/ZenModeButton";
 import {
     View,
@@ -17,6 +17,7 @@ import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withSpring,
+    withSequence,
     FadeIn,
     BounceIn,
 } from "react-native-reanimated";
@@ -55,8 +56,8 @@ export default function TodoApp() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>("ALL");
     const colorScheme = useColorScheme();
-    const notificationListener = useRef<any>();
-    const responseListener = useRef<any>();
+    const notificationListener = useRef<Notifications.EventSubscription>();
+    const responseListener = useRef<Notifications.EventSubscription>();
     const insets = useSafeAreaInsets();
 
     // Button animation
@@ -121,24 +122,23 @@ export default function TodoApp() {
         }
     };
 
-    const handleAddOrUpdate = () => {
+    const handleAddOrUpdate = useCallback(() => {
         if (!text.trim()) return;
 
         // Dismiss keyboard
         Keyboard.dismiss();
 
-        // Button bounce animation
-        buttonScale.value = withSpring(0.85, {
-            damping: 10,
-            stiffness: 400,
-        });
-
-        setTimeout(() => {
-            buttonScale.value = withSpring(1, {
+        // Button bounce animation using withSequence instead of setTimeout
+        buttonScale.value = withSequence(
+            withSpring(0.85, {
+                damping: 10,
+                stiffness: 400,
+            }),
+            withSpring(1, {
                 damping: 8,
                 stiffness: 350,
-            });
-        }, 150);
+            })
+        );
 
         if (editingId) {
             // Edit existing
@@ -157,15 +157,15 @@ export default function TodoApp() {
             setTodos((prev) => [newTodo, ...prev]);
         }
         setText("");
-    };
+    }, [text, editingId]);
 
-    const toggleComplete = (id: string) => {
+    const toggleComplete = useCallback((id: string) => {
         setTodos((prev) =>
             prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
         );
-    };
+    }, []);
 
-    const deleteTodo = async (id: string) => {
+    const deleteTodo = useCallback(async (id: string) => {
         const todo = todos.find((t) => t.id === id);
 
         // Cancel notification if exists
@@ -174,14 +174,14 @@ export default function TodoApp() {
         }
 
         setTodos((prev) => prev.filter((t) => t.id !== id));
-    };
+    }, [todos]);
 
-    const startEditing = (todo: Todo) => {
+    const startEditing = useCallback((todo: Todo) => {
         setText(todo.text);
         setEditingId(todo.id);
-    };
+    }, []);
 
-    const handleSetReminder = async (id: string, date: Date) => {
+    const handleSetReminder = useCallback(async (id: string, date: Date) => {
         const todo = todos.find((t) => t.id === id);
         if (!todo) return;
 
@@ -214,9 +214,9 @@ export default function TodoApp() {
                     : t
             )
         );
-    };
+    }, [todos]);
 
-    const handleClearReminder = async (id: string) => {
+    const handleClearReminder = useCallback(async (id: string) => {
         const todo = todos.find((t) => t.id === id);
         if (!todo || !todo.notificationId) return;
 
@@ -234,7 +234,7 @@ export default function TodoApp() {
                     : t
             )
         );
-    };
+    }, [todos]);
 
     // Filter Logic
     const filteredTodos = useMemo(() => {
@@ -247,6 +247,20 @@ export default function TodoApp() {
                 return todos;
         }
     }, [todos, filter]);
+
+    const renderTodoItem = useCallback(({ item, index }: { item: Todo; index: number }) => (
+        <TodoItem
+            item={item}
+            index={index}
+            onToggle={toggleComplete}
+            onEdit={startEditing}
+            onDelete={deleteTodo}
+            onSetReminder={handleSetReminder}
+            onClearReminder={handleClearReminder}
+        />
+    ), [toggleComplete, startEditing, deleteTodo, handleSetReminder, handleClearReminder]);
+
+    const keyExtractor = useCallback((item: Todo) => item.id, []);
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -312,18 +326,8 @@ export default function TodoApp() {
                 {/* List */}
                 <FlatList
                     data={filteredTodos}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item, index }) => (
-                        <TodoItem
-                            item={item}
-                            index={index}
-                            onToggle={toggleComplete}
-                            onEdit={startEditing}
-                            onDelete={deleteTodo}
-                            onSetReminder={handleSetReminder}
-                            onClearReminder={handleClearReminder}
-                        />
-                    )}
+                    keyExtractor={keyExtractor}
+                    renderItem={renderTodoItem}
                     contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) + 24 }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
