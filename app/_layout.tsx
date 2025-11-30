@@ -34,7 +34,10 @@ export default function RootLayout() {
     }, [isDark, theme]);
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <SafeAreaView
+            style={{ flex: 1, backgroundColor: theme.background }}
+            edges={['top', 'left', 'right']}
+        >
             <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
                 <Stack screenOptions={{
                     headerShown: false,

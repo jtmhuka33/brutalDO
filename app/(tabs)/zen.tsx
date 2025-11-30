@@ -17,6 +17,7 @@ import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import { Todo } from "@/types/todo";
 
@@ -31,6 +32,7 @@ export default function ZenMode() {
     const [selectedTask, setSelectedTask] = useState<string | null>(null);
     const [sessionCount, setSessionCount] = useState(4);
     const [timerStarted, setTimerStarted] = useState(false);
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         loadTodos();
@@ -80,7 +82,10 @@ export default function ZenMode() {
 
     if (timerStarted && selectedTask) {
         return (
-            <View className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark">
+            <View
+                className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark"
+                style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+            >
                 <StatusBar style="auto" />
 
                 {/* Back Button */}
@@ -107,7 +112,11 @@ export default function ZenMode() {
 
                 <ScrollView
                     className="flex-1"
-                    contentContainerClassName="px-6 pt-20 pb-24"
+                    contentContainerStyle={{
+                        paddingHorizontal: 24,
+                        paddingTop: 80,
+                        paddingBottom: Math.max(insets.bottom, 24) + 24
+                    }}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Pressable, AppState, Alert } from "react-native";
+import { View, Text, Pressable, AppState, Alert, ScrollView } from "react-native";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -273,7 +273,11 @@ export default function PomodoroTimer({
     };
 
     return (
-        <View className="flex-1 gap-8">
+        <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ gap: 32, paddingBottom: 16 }}
+            showsVerticalScrollIndicator={false}
+        >
             {/* Session Counter */}
             <View className="items-center justify-center border-5 border-black bg-white p-4 shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark">
                 <Text className="text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">
@@ -348,6 +352,6 @@ export default function PomodoroTimer({
                     </Text>
                 </Pressable>
             </View>
-        </View>
+        </ScrollView>
     );
 }

@@ -26,6 +26,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import * as Notifications from "expo-notifications";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import TodoItem from "@/components/TodoItem";
 import FilterTabs from "@/components/FilterTabs";
@@ -56,6 +57,7 @@ export default function TodoApp() {
     const colorScheme = useColorScheme();
     const notificationListener = useRef<any>();
     const responseListener = useRef<any>();
+    const insets = useSafeAreaInsets();
 
     // Button animation
     const buttonScale = useSharedValue(1);
@@ -322,7 +324,7 @@ export default function TodoApp() {
                             onClearReminder={handleClearReminder}
                         />
                     )}
-                    contentContainerClassName="pb-24"
+                    contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) + 24 }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     ListEmptyComponent={
