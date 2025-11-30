@@ -31,7 +31,6 @@ const STORAGE_KEY = "@neo_brutal_todos_v2";
 export default function ZenMode() {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
-    const [sessionCount, setSessionCount] = useState(4);
     const [timerStarted, setTimerStarted] = useState(false);
     const insets = useSafeAreaInsets();
 
@@ -61,10 +60,6 @@ export default function ZenMode() {
     };
 
     const handleSessionChange = async (increment: boolean) => {
-        setSessionCount((prev) => {
-            const newCount = increment ? prev + 1 : prev - 1;
-            return Math.max(1, Math.min(12, newCount));
-        });
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
@@ -135,7 +130,6 @@ export default function ZenMode() {
                 <PomodoroTimer
                     selectedTask={selectedTodo.text}
                     taskId={selectedTodo.id}
-                    totalSessions={sessionCount}
                     onComplete={handleComplete}
                     onCompleteTask={handleCompleteTask}
                 />
@@ -174,72 +168,6 @@ export default function ZenMode() {
                             <Ionicons name="leaf-sharp" size={32} color="#FF0055" />
                         </View>
                     </View>
-
-                    {/* Description */}
-                    <Animated.View
-                        entering={FadeIn.delay(100).duration(400)}
-                        className="mb-8 border-5 border-black bg-neo-secondary p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark"
-                    >
-                        <Text className="text-base font-black uppercase text-black">
-                            Focus deeply on one task using the Pomodoro Technique
-                        </Text>
-                    </Animated.View>
-
-                    {/* Session Counter */}
-                    <Animated.View
-                        entering={FadeIn.delay(200).duration(400)}
-                        className="mb-8"
-                    >
-                        <Text className="mb-4 text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">
-                            Number of Sessions
-                        </Text>
-
-                        <View className="flex-row items-center gap-4">
-                            <Pressable
-                                onPress={() => handleSessionChange(false)}
-                                disabled={sessionCount <= 1}
-                                className={cn(
-                                    "h-16 w-16 items-center justify-center border-5 border-black shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                                    sessionCount <= 1
-                                        ? "bg-gray-300 dark:bg-neo-dark-surface"
-                                        : "bg-neo-primary"
-                                )}
-                            >
-                                <Ionicons
-                                    name="remove-sharp"
-                                    size={32}
-                                    color={sessionCount <= 1 ? "gray" : "white"}
-                                />
-                            </Pressable>
-
-                            <View className="flex-1 items-center justify-center border-5 border-black bg-neo-accent p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark">
-                                <Text className="text-5xl font-black tabular-nums text-black">
-                                    {sessionCount}
-                                </Text>
-                            </View>
-
-                            <Pressable
-                                onPress={() => handleSessionChange(true)}
-                                disabled={sessionCount >= 12}
-                                className={cn(
-                                    "h-16 w-16 items-center justify-center border-5 border-black shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                                    sessionCount >= 12
-                                        ? "bg-gray-300 dark:bg-neo-dark-surface"
-                                        : "bg-neo-primary"
-                                )}
-                            >
-                                <Ionicons
-                                    name="add-sharp"
-                                    size={32}
-                                    color={sessionCount >= 12 ? "gray" : "white"}
-                                />
-                            </Pressable>
-                        </View>
-
-                        <Text className="mt-3 text-center text-xs font-black uppercase text-gray-600 dark:text-gray-400">
-                            {sessionCount * 25} minutes of focus time
-                        </Text>
-                    </Animated.View>
 
                     {/* Task Selection */}
                     <Animated.View

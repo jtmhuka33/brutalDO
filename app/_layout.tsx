@@ -1,13 +1,13 @@
-import { Stack } from "expo-router";
+import {Stack} from "expo-router";
 import "../global.css";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
-import { StatusBar } from "expo-status-bar";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect } from "react";
-import { Platform } from "react-native";
+import {useColorScheme} from "@/hooks/use-color-scheme";
+import {DarkTheme, DefaultTheme, ThemeProvider} from "@react-navigation/native";
+import {StatusBar} from "expo-status-bar";
+import {useEffect} from "react";
+import {Platform, View} from "react-native";
 import * as SystemUI from "expo-system-ui";
 import * as NavigationBar from "expo-navigation-bar";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 
 const COLORS = {
     light: {
@@ -24,6 +24,7 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
     const theme = isDark ? COLORS.dark : COLORS.light;
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         if (Platform.OS === "android") {
@@ -34,19 +35,24 @@ export default function RootLayout() {
     }, [isDark, theme]);
 
     return (
-        <SafeAreaView
-            style={{ flex: 1, backgroundColor: theme.background }}
-            edges={['top', 'left', 'right']}
+        <View
+            style={{
+                flex: 1,
+                backgroundColor: theme.background,
+                paddingTop: insets.top,
+                paddingLeft: insets.left,
+                paddingRight: insets.right,
+            }}
         >
             <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
                 <Stack screenOptions={{
                     headerShown: false,
                     animation: 'slide_from_right'
                 }}>
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="(tabs)" options={{headerShown: false}}/>
                 </Stack>
-                <StatusBar style={isDark ? "light" : "dark"} />
+                <StatusBar style={isDark ? "light" : "dark"}/>
             </ThemeProvider>
-        </SafeAreaView>
+        </View>
     );
 }

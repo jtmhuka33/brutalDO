@@ -36,13 +36,11 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export default function PomodoroTimer({
                                           selectedTask,
                                           taskId,
-                                          totalSessions,
                                           onComplete,
                                           onCompleteTask,
                                       }: PomodoroTimerProps) {
     const [timeLeft, setTimeLeft] = useState(WORK_TIME);
     const [isRunning, setIsRunning] = useState(false);
-    const [currentSession, setCurrentSession] = useState(1);
     const [timerState, setTimerState] = useState<TimerState>("work");
     const [notificationId, setNotificationId] = useState<string | null>(null);
 
@@ -113,7 +111,7 @@ export default function PomodoroTimer({
         const finishTime = new Date(Date.now() + timeLeft * 1000);
         const message =
             timerState === "work"
-                ? `Time for a break! You completed session ${currentSession}.`
+                ? `Time for a break!`
                 : "Break's over! Ready for the next session?";
 
         const id = await scheduleNotification(message, finishTime);
