@@ -49,7 +49,8 @@ const STORAGE_KEY = "@neo_brutal_todos_v2";
 // Cycle through these for new items
 const CARD_COLORS_COUNT = 6;
 
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedTouchableOpacity =
+    Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function TodoApp() {
     const [text, setText] = useState("");
@@ -57,8 +58,8 @@ export default function TodoApp() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>("ALL");
     const colorScheme = useColorScheme();
-    const notificationListener = useRef<Notifications.Subscription | null>(null);
-    const responseListener = useRef<Notifications.Subscription | null>(null);
+    const notificationListener = useRef<Notifications.EventSubscription>();
+    const responseListener = useRef<Notifications.EventSubscription>();
     const insets = useSafeAreaInsets();
 
     // Button animation
@@ -85,9 +86,16 @@ export default function TodoApp() {
             });
 
         return () => {
-            // Use .remove() method on the subscription object directly
-            notificationListener.current?.remove();
-            responseListener.current?.remove();
+            if (notificationListener.current) {
+                Notifications.removeNotificationSubscription(
+                    notificationListener.current
+                );
+            }
+            if (responseListener.current) {
+                Notifications.removeNotificationSubscription(
+                    responseListener.current
+                );
+            }
         };
     }, []);
 
@@ -141,7 +149,9 @@ export default function TodoApp() {
         if (editingId) {
             // Edit existing
             setTodos((prev) =>
-                prev.map((t) => (t.id === editingId ? { ...t, text: text.trim() } : t))
+                prev.map((t) =>
+                    t.id === editingId ? { ...t, text: text.trim() } : t
+                )
             );
             setEditingId(null);
         } else {
@@ -163,100 +173,181 @@ export default function TodoApp() {
         );
     }, []);
 
-    const deleteTodo = useCallback(async (id: string) => {
-        const todo = todos.find((t) => t.id === id);
+    const deleteTodo = useCallback(
+        async (id: string) => {
+            const todo = todos.find((t) => t.id === id);
 
-        // Cancel notification if exists
-        if (todo?.notificationId) {
-            await cancelNotification(todo.notificationId);
-        }
+            // Cancel notification if exists
+            if (todo?.notificationId) {
+                await cancelNotification(todo.notificationId);
+            }
 
-        setTodos((prev) => prev.filter((t) => t.id !== id));
-    }, [todos]);
+            setTodos((prev) => prev.filter((t) => t.id !== id));
+        },
+        [todos]
+    );
 
     const startEditing = useCallback((todo: Todo) => {
         setText(todo.text);
         setEditingId(todo.id);
     }, []);
 
-    const handleSetReminder = useCallback(async (id: string, date: Date) => {
-        const todo = todos.find((t) => t.id === id);
-        if (!todo) return;
+    const handleSetReminder = useCallback(
+        async (id: string, date: Date) => {
+            const todo = todos.find((t) => t.id === id);
+            if (!todo) return;
 
-        // Check if date is in the future
-        if (date <= new Date()) {
-            Alert.alert(
-                "Invalid Time",
-                "Please select a time in the future.",
-                [{ text: "OK" }]
+            // Check if date is in the future
+            if (date <= new Date()) {
+                Alert.alert("Invalid Time", "Please select a time in the future.", [
+                    { text: "OK" },
+                ]);
+                return;
+            }
+
+            // Cancel existing notification if any
+            if (todo.notificationId) {
+                await cancelNotification(todo.notificationId);
+            }
+
+            // Schedule new notification
+            const notificationId = await scheduleNotification(todo.text, date);
+
+            setTodos((prev) =>
+                prev.map((t) =>
+                    t.id === id
+                        ? {
+                            ...t,
+                            reminderDate: date.toISOString(),
+                            notificationId,
+                        }
+                        : t
+                )
             );
-            return;
-        }
+        },
+        [todos]
+    );
 
-        // Cancel existing notification if any
-        if (todo.notificationId) {
+    const handleClearReminder = useCallback(
+        async (id: string) => {
+            const todo = todos.find((t) => t.id === id);
+            if (!todo || !todo.notificationId) return;
+
+            // Cancel the notification
             await cancelNotification(todo.notificationId);
-        }
 
-        // Schedule new notification
-        const notificationId = await scheduleNotification(todo.text, date);
+            setTodos((prev) =>
+                prev.map((t) =>
+                    t.id === id
+                        ? {
+                            ...t,
+                            reminderDate: undefined,
+                            notificationId: undefined,
+                        }
+                        : t
+                )
+            );
+        },
+        [todos]
+    );
 
-        setTodos((prev) =>
-            prev.map((t) =>
-                t.id === id
-                    ? {
-                        ...t,
-                        reminderDate: date.toISOString(),
-                        notificationId,
-                    }
-                    : t
-            )
-        );
-    }, [todos]);
-
-    const handleClearReminder = useCallback(async (id: string) => {
-        const todo = todos.find((t) => t.id === id);
-        if (!todo || !todo.notificationId) return;
-
-        // Cancel the notification
-        await cancelNotification(todo.notificationId);
+    const handleSetDueDate = useCallback((id: string, date: Date) => {
+        // Set the due date to end of day for proper comparison
+        const dueDate = new Date(date);
+        dueDate.setHours(23, 59, 59, 999);
 
         setTodos((prev) =>
             prev.map((t) =>
                 t.id === id
                     ? {
                         ...t,
-                        reminderDate: undefined,
-                        notificationId: undefined,
+                        dueDate: dueDate.toISOString(),
                     }
                     : t
             )
         );
-    }, [todos]);
+    }, []);
 
-    // Filter Logic
-    const filteredTodos = useMemo(() => {
+    const handleClearDueDate = useCallback((id: string) => {
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === id
+                    ? {
+                        ...t,
+                        dueDate: undefined,
+                    }
+                    : t
+            )
+        );
+    }, []);
+
+    // Sort and Filter Logic
+    const sortedAndFilteredTodos = useMemo(() => {
+        // First filter
+        let filtered: Todo[];
         switch (filter) {
             case "TODO":
-                return todos.filter((t) => !t.completed);
+                filtered = todos.filter((t) => !t.completed);
+                break;
             case "DONE":
-                return todos.filter((t) => t.completed);
+                filtered = todos.filter((t) => t.completed);
+                break;
             default:
-                return todos;
+                filtered = [...todos];
         }
+
+        // Then sort:
+        // 1. Incomplete tasks with due dates (sorted by due date, earliest first)
+        // 2. Incomplete tasks without due dates (sorted by creation, newest first)
+        // 3. Completed tasks (sorted by creation, newest first)
+        return filtered.sort((a, b) => {
+            // Completed tasks always go to the bottom
+            if (a.completed && !b.completed) return 1;
+            if (!a.completed && b.completed) return -1;
+
+            // Both completed or both incomplete
+            if (!a.completed && !b.completed) {
+                // Both have due dates - sort by due date (earliest first)
+                if (a.dueDate && b.dueDate) {
+                    const dateA = new Date(a.dueDate).getTime();
+                    const dateB = new Date(b.dueDate).getTime();
+                    return dateA - dateB;
+                }
+                // Only a has due date - a comes first
+                if (a.dueDate && !b.dueDate) return -1;
+                // Only b has due date - b comes first
+                if (!a.dueDate && b.dueDate) return 1;
+            }
+
+            // Both don't have due dates or both completed - maintain original order (newest first)
+            return parseInt(b.id) - parseInt(a.id);
+        });
     }, [todos, filter]);
 
-    const renderTodoItem = useCallback(({ item, index }: { item: Todo; index: number }) => (
-        <TodoItem
-            item={item}
-            index={index}
-            onToggle={toggleComplete}
-            onEdit={startEditing}
-            onDelete={deleteTodo}
-            onSetReminder={handleSetReminder}
-            onClearReminder={handleClearReminder}
-        />
-    ), [toggleComplete, startEditing, deleteTodo, handleSetReminder, handleClearReminder]);
+    const renderTodoItem = useCallback(
+        ({ item, index }: { item: Todo; index: number }) => (
+            <TodoItem
+                item={item}
+                index={index}
+                onToggle={toggleComplete}
+                onEdit={startEditing}
+                onDelete={deleteTodo}
+                onSetReminder={handleSetReminder}
+                onClearReminder={handleClearReminder}
+                onSetDueDate={handleSetDueDate}
+                onClearDueDate={handleClearDueDate}
+            />
+        ),
+        [
+            toggleComplete,
+            startEditing,
+            deleteTodo,
+            handleSetReminder,
+            handleClearReminder,
+            handleSetDueDate,
+            handleClearDueDate,
+        ]
+    );
 
     const keyExtractor = useCallback((item: Todo) => item.id, []);
 
@@ -271,13 +362,11 @@ export default function TodoApp() {
                     className="mb-10 flex flex-row items-center justify-between"
                 >
                     <View className="flex-row items-center gap-4">
-                        <Text
-                            className="text-5xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight">
+                        <Text className="text-5xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight">
                             Brutal
                         </Text>
                         <View className="h-4 w-4 bg-neo-accent border-4 border-black rotate-45 dark:border-neo-primary" />
-                        <Text
-                            className="text-5xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-neo-primary leading-tight">
+                        <Text className="text-5xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-neo-primary leading-tight">
                             Do
                         </Text>
                     </View>
@@ -297,12 +386,16 @@ export default function TodoApp() {
                     <TextInput
                         value={text}
                         onChangeText={setText}
-                        placeholder={editingId ? "EDIT TASK..." : "WHAT'S THE TASK?!"}
-                        placeholderTextColor={colorScheme === 'dark' ? "#666" : "#999"}
+                        placeholder={
+                            editingId ? "EDIT TASK..." : "WHAT'S THE TASK?!"
+                        }
+                        placeholderTextColor={
+                            colorScheme === "dark" ? "#666" : "#999"
+                        }
                         className="flex-1 border-5 border-black bg-white p-5 font-black text-lg text-black shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white dark:shadow-brutal-dark uppercase"
                         returnKeyType="done"
                         onSubmitEditing={handleAddOrUpdate}
-                        submitBehavior='blurAndSubmit'
+                        submitBehavior="blurAndSubmit"
                     />
                     <AnimatedTouchableOpacity
                         onPress={handleAddOrUpdate}
@@ -323,23 +416,30 @@ export default function TodoApp() {
 
                 {/* List */}
                 <FlatList
-                    data={filteredTodos}
+                    data={sortedAndFilteredTodos}
                     keyExtractor={keyExtractor}
                     renderItem={renderTodoItem}
-                    contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) + 24 }}
+                    contentContainerStyle={{
+                        paddingBottom: Math.max(insets.bottom, 24) + 24,
+                    }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     ListEmptyComponent={
                         <Animated.View
-                            entering={BounceIn.duration(500).springify().damping(12)}
+                            entering={BounceIn.duration(500)
+                                .springify()
+                                .damping(12)}
                             className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-neo-primary rotate-2"
                         >
-                            <Text
-                                className="text-3xl font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">
-                                {filter === 'TODO' ? "ALL CLEAR!" : "NOTHING YET"}
+                            <Text className="text-3xl font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">
+                                {filter === "TODO"
+                                    ? "ALL CLEAR!"
+                                    : "NOTHING YET"}
                             </Text>
                             <Text className="font-black text-gray-500 dark:text-gray-400 uppercase text-sm mt-2">
-                                {filter === 'TODO' ? "(Chill time)" : "(Add a task!)"}
+                                {filter === "TODO"
+                                    ? "(Chill time)"
+                                    : "(Add a task!)"}
                             </Text>
                         </Animated.View>
                     }

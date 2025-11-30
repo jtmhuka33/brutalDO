@@ -5,6 +5,7 @@ export interface Todo {
     colorVariant?: number;
     reminderDate?: string; 
     notificationId?: string;
+    dueDate?: string;
 }
 
 export type FilterType = "ALL" | "TODO" | "DONE";
