@@ -91,20 +91,20 @@ export default function ReminderPicker({
     return (
         <View className="mt-4 gap-3">
             {reminderDate && (
-                <View className="flex-row items-center justify-between border-5 border-black bg-neo-green p-4 shadow-brutal-sm dark:border-white dark:bg-neo-purple dark:shadow-brutal-dark-sm">
+                <View className="flex-row items-center justify-between border-5 border-black bg-neo-green p-4 shadow-brutal-sm dark:border-neo-primary dark:shadow-brutal-dark-sm">
                     <View className="flex-row items-center gap-3 flex-1">
                         <Ionicons
                             name="notifications-sharp"
                             size={24}
-                            color={colorScheme === "dark" ? "white" : "black"}
+                            color="black"
                         />
-                        <Text className="flex-1 font-black uppercase text-black dark:text-white text-sm tracking-tight">
+                        <Text className="flex-1 font-black uppercase text-black text-sm tracking-tight">
                             {formatReminderDate(reminderDate)}
                         </Text>
                     </View>
                     <Pressable
                         onPress={onClearReminder}
-                        className="h-10 w-10 items-center justify-center border-4 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:shadow-brutal-dark-sm"
+                        className="h-10 w-10 items-center justify-center border-4 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
                     >
                         <Ionicons name="close-sharp" size={20} color="white" />
                     </Pressable>
@@ -117,8 +117,8 @@ export default function ReminderPicker({
                 onPressOut={handlePressOut}
                 style={animatedStyle}
                 className={cn(
-                    "flex-row items-center justify-center gap-3 border-5 border-black bg-neo-secondary p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-white dark:bg-neo-orange dark:shadow-brutal-dark",
-                    reminderDate && "bg-gray-300 dark:bg-gray-700"
+                    "flex-row items-center justify-center gap-3 border-5 border-black bg-neo-secondary p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
+                    reminderDate && "bg-gray-300 dark:bg-neo-dark-surface"
                 )}
             >
                 <Ionicons

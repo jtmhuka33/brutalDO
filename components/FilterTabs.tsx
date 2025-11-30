@@ -96,7 +96,7 @@ function FilterTab({
                     rotationClass,
                     isActive
                         ? "bg-neo-accent translate-x-[4px] translate-y-[4px] shadow-none dark:bg-neo-primary"
-                        : "bg-white shadow-brutal dark:bg-zinc-900 dark:shadow-brutal-dark"
+                        : "bg-white shadow-brutal dark:bg-neo-dark-surface dark:shadow-brutal-dark dark:border-neo-primary"
                 )}
             >
                 <Text
@@ -104,7 +104,7 @@ function FilterTab({
                         "font-black uppercase tracking-widest text-base",
                         isActive
                             ? "text-black dark:text-white"
-                            : "text-gray-600 dark:text-gray-500"
+                            : "text-gray-600 dark:text-gray-300"
                     )}
                 >
                     {label}

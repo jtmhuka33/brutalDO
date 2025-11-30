@@ -20,12 +20,12 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 
 // More varied, vibrant card colors
 const CARD_COLORS = [
-    "bg-neo-accent",     // Yellow
-    "bg-neo-secondary",  // Cyan
-    "bg-neo-primary",    // Neon Pink
-    "bg-neo-purple",     // Electric Purple
-    "bg-neo-green",      // Matrix Green
-    "bg-neo-orange",     // Vivid Orange
+    "bg-neo-accent dark:bg-neo-accent",     // Yellow
+    "bg-neo-secondary dark:bg-neo-secondary",  // Cyan
+    "bg-neo-primary dark:bg-neo-primary",    // Neon Pink
+    "bg-neo-purple dark:bg-neo-purple",     // Electric Purple
+    "bg-neo-green dark:bg-neo-green",      // Matrix Green
+    "bg-neo-orange dark:bg-neo-orange",     // Vivid Orange
 ];
 
 interface TodoItemProps {
@@ -104,10 +104,11 @@ export default function TodoItem({
             layout={Layout.springify().damping(16).stiffness(380)}
             style={animatedStyle}
             className={cn(
-                "mb-6 border-5 border-black p-5 shadow-brutal dark:border-white dark:shadow-brutal-dark",
+                "mb-6 border-5 p-5 shadow-brutal",
                 item.completed
-                    ? "bg-gray-300 dark:bg-gray-700"
-                    : `${colorClass} dark:bg-zinc-800`,
+                    ? "bg-gray-300 dark:bg-neo-dark-surface border-black dark:border-gray-600"
+                    : `${colorClass} border-black dark:border-neo-primary`,
+                "dark:shadow-brutal-dark",
                 // Add slight rotation for asymmetry
                 index % 3 === 0 && "-rotate-1",
                 index % 3 === 1 && "rotate-1",
@@ -122,15 +123,15 @@ export default function TodoItem({
                     {/* BRUTAL Checkbox */}
                     <View
                         className={cn(
-                            "h-10 w-10 border-5 border-black bg-white items-center justify-center shadow-brutal-sm dark:border-white dark:bg-black dark:shadow-brutal-dark-sm",
-                            item.completed && "bg-black dark:bg-white"
+                            "h-10 w-10 border-5 border-black bg-white items-center justify-center shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm",
+                            item.completed && "bg-black dark:bg-neo-primary"
                         )}
                     >
                         {item.completed && (
                             <Ionicons
                                 name="checkmark-sharp"
                                 size={24}
-                                color={colorScheme === 'dark' ? 'black' : 'white'}
+                                color="white"
                                 style={{ fontWeight: '900' }}
                             />
                         )}
@@ -138,8 +139,10 @@ export default function TodoItem({
 
                     <Text
                         className={cn(
-                            "text-xl font-black uppercase text-black dark:text-white flex-1 tracking-tight",
-                            item.completed && "line-through opacity-50"
+                            "text-xl font-black uppercase flex-1 tracking-tight",
+                            item.completed
+                                ? "line-through opacity-50 text-black dark:text-gray-400"
+                                : "text-black dark:text-black"
                         )}
                     >
                         {item.text}
@@ -151,10 +154,10 @@ export default function TodoItem({
                     <Pressable
                         onPress={() => setShowReminderPicker(!showReminderPicker)}
                         className={cn(
-                            "h-11 w-11 items-center justify-center border-5 border-black shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:shadow-brutal-dark-sm",
+                            "h-11 w-11 items-center justify-center border-5 border-black shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
                             item.reminderDate
-                                ? "bg-neo-green dark:bg-neo-purple"
-                                : "bg-neo-accent dark:bg-neo-orange"
+                                ? "bg-neo-green"
+                                : "bg-neo-accent"
                         )}
                     >
                         <Ionicons
@@ -178,7 +181,7 @@ export default function TodoItem({
                                 onEdit(item);
                             }, 150);
                         }}
-                        className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-secondary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:bg-neo-green dark:shadow-brutal-dark-sm"
+                        className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-secondary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
                     >
                         <Ionicons name="pencil-sharp" size={20} color="black" />
                     </Pressable>
@@ -193,7 +196,7 @@ export default function TodoItem({
                                 onDelete(item.id);
                             }, 100);
                         }}
-                        className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:bg-neo-primary dark:shadow-brutal-dark-sm"
+                        className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
                     >
                         <Ionicons name="trash-sharp" size={20} color="white" />
                     </Pressable>

@@ -261,9 +261,9 @@ export default function TodoApp() {
                             className="text-5xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight">
                             Brutal
                         </Text>
-                        <View className="h-4 w-4 bg-neo-accent border-4 border-black rotate-45 dark:border-white" />
+                        <View className="h-4 w-4 bg-neo-accent border-4 border-black rotate-45 dark:border-neo-primary" />
                         <Text
-                            className="text-5xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-white leading-tight">
+                            className="text-5xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-neo-primary leading-tight">
                             Do
                         </Text>
                     </View>
@@ -284,8 +284,8 @@ export default function TodoApp() {
                         value={text}
                         onChangeText={setText}
                         placeholder={editingId ? "EDIT TASK..." : "WHAT'S THE TASK?!"}
-                        placeholderTextColor={colorScheme === 'dark' ? "#555" : "#999"}
-                        className="flex-1 border-5 border-black bg-white p-5 font-black text-lg text-black shadow-brutal dark:border-white dark:bg-zinc-900 dark:text-white dark:shadow-brutal-dark uppercase"
+                        placeholderTextColor={colorScheme === 'dark' ? "#666" : "#999"}
+                        className="flex-1 border-5 border-black bg-white p-5 font-black text-lg text-black shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white dark:shadow-brutal-dark uppercase"
                         returnKeyType="done"
                         onSubmitEditing={handleAddOrUpdate}
                         submitBehavior='blurAndSubmit'
@@ -295,7 +295,7 @@ export default function TodoApp() {
                         style={buttonAnimatedStyle}
                         activeOpacity={0.9}
                         className={cn(
-                            "items-center justify-center border-5 border-black px-7 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-white dark:shadow-brutal-dark",
+                            "items-center justify-center border-5 border-black px-7 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
                             editingId ? "bg-neo-secondary" : "bg-neo-accent"
                         )}
                     >
@@ -328,13 +328,13 @@ export default function TodoApp() {
                     ListEmptyComponent={
                         <Animated.View
                             entering={BounceIn.duration(500).springify().damping(12)}
-                            className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-gray-600 rotate-2"
+                            className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-neo-primary rotate-2"
                         >
                             <Text
-                                className="text-3xl font-black text-gray-500 dark:text-gray-600 uppercase tracking-tight">
+                                className="text-3xl font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">
                                 {filter === 'TODO' ? "ALL CLEAR!" : "NOTHING YET"}
                             </Text>
-                            <Text className="font-black text-gray-500 dark:text-gray-600 uppercase text-sm mt-2">
+                            <Text className="font-black text-gray-500 dark:text-gray-400 uppercase text-sm mt-2">
                                 {filter === 'TODO' ? "(Chill time)" : "(Add a task!)"}
                             </Text>
                         </Animated.View>

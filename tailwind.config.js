@@ -17,17 +17,19 @@ module.exports = {
                 brutal: "8px 8px 0px 0px rgba(0,0,0,1)",
                 'brutal-sm': "4px 4px 0px 0px rgba(0,0,0,1)",
                 'brutal-lg': "12px 12px 0px 0px rgba(0,0,0,1)",
-                'brutal-xl': "16px 16px 0px 0px rgba(255,255,255,1)",
-                // Dark mode shadows (white) - equally aggressive
-                'brutal-dark': "8px 8px 0px 0px rgba(255,255,255,1)",
-                'brutal-dark-sm': "4px 4px 0px 0px rgba(255,255,255,1)",
-                'brutal-dark-lg': "12px 12px 0px 0px rgba(255,255,255,1)",
+                'brutal-xl': "16px 16px 0px 0px rgba(0,0,0,1)",
+                // Dark mode shadows - colored for pop
+                'brutal-dark': "8px 8px 0px 0px rgba(255,0,85,0.5)",
+                'brutal-dark-sm': "4px 4px 0px 0px rgba(255,0,85,0.5)",
+                'brutal-dark-lg': "12px 12px 0px 0px rgba(255,0,85,0.5)",
             },
             colors: {
                 neo: {
                     // Canvas colors
                     bg: "#FFF8F0",
                     dark: "#0A0A0A",
+                    'dark-surface': "#1A1A1A",
+                    'dark-elevated': "#252525",
                     // HYPER-saturated, vibrant palette
                     primary: "#FF0055", // Neon Pink
                     secondary: "#00FFF0", // Electric Cyan

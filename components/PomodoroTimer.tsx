@@ -275,8 +275,8 @@ export default function PomodoroTimer({
     return (
         <View className="flex-1 gap-8">
             {/* Session Counter */}
-            <View className="items-center justify-center border-5 border-black bg-white p-4 shadow-brutal dark:border-white dark:bg-zinc-900 dark:shadow-brutal-dark">
-                <Text className="text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+            <View className="items-center justify-center border-5 border-black bg-white p-4 shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark">
+                <Text className="text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">
                     Session
                 </Text>
                 <Text className="text-4xl font-black uppercase text-black dark:text-white">
@@ -285,14 +285,14 @@ export default function PomodoroTimer({
             </View>
 
             {/* Main Timer Display */}
-            <View className="items-center justify-center border-5 border-black bg-neo-accent p-12 shadow-brutal-lg dark:border-white dark:bg-neo-orange dark:shadow-brutal-dark-lg">
+            <View className="items-center justify-center border-5 border-black bg-neo-accent p-12 shadow-brutal-lg dark:border-neo-primary dark:shadow-brutal-dark-lg">
                 <Text className="text-7xl font-black tabular-nums tracking-tighter text-black">
                     {formatTime(timeLeft)}
                 </Text>
             </View>
 
             {/* Progress Bar */}
-            <View className="h-8 overflow-hidden border-5 border-black bg-white shadow-brutal-sm dark:border-white dark:bg-zinc-900 dark:shadow-brutal-dark-sm">
+            <View className="h-8 overflow-hidden border-5 border-black bg-white shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm">
                 <Animated.View
                     style={progressStyle}
                     className={cn("h-full", getStateColor())}
@@ -300,7 +300,7 @@ export default function PomodoroTimer({
             </View>
 
             {/* Task Display */}
-            <View className="border-5 border-black bg-neo-secondary p-4 shadow-brutal dark:border-white dark:bg-neo-green dark:shadow-brutal-dark">
+            <View className="border-5 border-black bg-neo-secondary p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark">
                 <Text className="text-xs font-black uppercase tracking-widest text-black">
                     Current Task
                 </Text>
@@ -326,7 +326,7 @@ export default function PomodoroTimer({
                         });
                     }}
                     style={animatedStyle}
-                    className="flex-1 items-center justify-center border-5 border-black bg-neo-primary p-6 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-white dark:shadow-brutal-dark"
+                    className="flex-1 items-center justify-center border-5 border-black bg-neo-primary p-6 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
                 >
                     <Ionicons
                         name={isRunning ? "pause-sharp" : "play-sharp"}
@@ -340,9 +340,9 @@ export default function PomodoroTimer({
 
                 <Pressable
                     onPress={resetTimer}
-                    className="items-center justify-center border-5 border-black bg-white p-6 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-white dark:bg-zinc-900 dark:shadow-brutal-dark"
+                    className="items-center justify-center border-5 border-black bg-white p-6 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark"
                 >
-                    <Ionicons name="refresh-sharp" size={36} color="black" />
+                    <Ionicons name="refresh-sharp" size={36} color="#FF0055" />
                     <Text className="mt-2 text-base font-black uppercase tracking-tight text-black dark:text-white">
                         RESET
                     </Text>

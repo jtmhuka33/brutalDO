@@ -86,9 +86,9 @@ export default function ZenMode() {
                 {/* Back Button */}
                 <Pressable
                     onPress={handleBack}
-                    className="mb-8 self-start border-5 border-black bg-white p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:bg-zinc-900 dark:shadow-brutal-dark-sm"
+                    className="mb-8 self-start border-5 border-black bg-white p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
                 >
-                    <Ionicons name="arrow-back-sharp" size={24} color="black" />
+                    <Ionicons name="arrow-back-sharp" size={24} color="#FF0055" />
                 </Pressable>
 
                 <PomodoroTimer
@@ -115,9 +115,9 @@ export default function ZenMode() {
                     <View className="mb-10 flex-row items-center justify-between">
                         <Pressable
                             onPress={handleBack}
-                            className="border-5 border-black bg-white p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:bg-zinc-900 dark:shadow-brutal-dark-sm"
+                            className="border-5 border-black bg-white p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
                         >
-                            <Ionicons name="arrow-back-sharp" size={24} color="black" />
+                            <Ionicons name="arrow-back-sharp" size={24} color="#FF0055" />
                         </Pressable>
 
                         <View className="flex-row items-center gap-3">
@@ -131,7 +131,7 @@ export default function ZenMode() {
                     {/* Description */}
                     <Animated.View
                         entering={FadeIn.delay(100).duration(400)}
-                        className="mb-8 border-5 border-black bg-neo-secondary p-4 shadow-brutal dark:border-white dark:bg-neo-green dark:shadow-brutal-dark"
+                        className="mb-8 border-5 border-black bg-neo-secondary p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark"
                     >
                         <Text className="text-base font-black uppercase text-black">
                             Focus deeply on one task using the Pomodoro Technique
@@ -143,7 +143,7 @@ export default function ZenMode() {
                         entering={FadeIn.delay(200).duration(400)}
                         className="mb-8"
                     >
-                        <Text className="mb-4 text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                        <Text className="mb-4 text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">
                             Number of Sessions
                         </Text>
 
@@ -152,9 +152,9 @@ export default function ZenMode() {
                                 onPress={() => handleSessionChange(false)}
                                 disabled={sessionCount <= 1}
                                 className={cn(
-                                    "h-16 w-16 items-center justify-center border-5 border-black shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:shadow-brutal-dark",
+                                    "h-16 w-16 items-center justify-center border-5 border-black shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
                                     sessionCount <= 1
-                                        ? "bg-gray-300 dark:bg-gray-700"
+                                        ? "bg-gray-300 dark:bg-neo-dark-surface"
                                         : "bg-neo-primary"
                                 )}
                             >
@@ -165,7 +165,7 @@ export default function ZenMode() {
                                 />
                             </Pressable>
 
-                            <View className="flex-1 items-center justify-center border-5 border-black bg-neo-accent p-4 shadow-brutal dark:border-white dark:bg-neo-orange dark:shadow-brutal-dark">
+                            <View className="flex-1 items-center justify-center border-5 border-black bg-neo-accent p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark">
                                 <Text className="text-5xl font-black tabular-nums text-black">
                                     {sessionCount}
                                 </Text>
@@ -175,9 +175,9 @@ export default function ZenMode() {
                                 onPress={() => handleSessionChange(true)}
                                 disabled={sessionCount >= 12}
                                 className={cn(
-                                    "h-16 w-16 items-center justify-center border-5 border-black shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:shadow-brutal-dark",
+                                    "h-16 w-16 items-center justify-center border-5 border-black shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
                                     sessionCount >= 12
-                                        ? "bg-gray-300 dark:bg-gray-700"
+                                        ? "bg-gray-300 dark:bg-neo-dark-surface"
                                         : "bg-neo-primary"
                                 )}
                             >
@@ -199,17 +199,17 @@ export default function ZenMode() {
                         entering={FadeIn.delay(300).duration(400)}
                         className="mb-8"
                     >
-                        <Text className="mb-4 text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                        <Text className="mb-4 text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">
                             Select a Task
                         </Text>
 
                         {todos.length === 0 ? (
-                            <View className="items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-gray-600">
+                            <View className="items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-neo-primary">
                                 <Ionicons name="checkbox-outline" size={48} color="gray" />
-                                <Text className="mt-4 text-center text-lg font-black uppercase text-gray-500 dark:text-gray-600">
+                                <Text className="mt-4 text-center text-lg font-black uppercase text-gray-500 dark:text-gray-400">
                                     No tasks available
                                 </Text>
-                                <Text className="mt-2 text-center text-sm font-black uppercase text-gray-500 dark:text-gray-600">
+                                <Text className="mt-2 text-center text-sm font-black uppercase text-gray-500 dark:text-gray-500">
                                     Go back and add some!
                                 </Text>
                             </View>
@@ -220,10 +220,10 @@ export default function ZenMode() {
                                         key={todo.id}
                                         onPress={() => handleTaskSelect(todo.text)}
                                         className={cn(
-                                            "border-5 border-black p-5 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-white dark:shadow-brutal-dark",
+                                            "border-5 border-black p-5 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
                                             selectedTask === todo.text
                                                 ? "bg-neo-primary"
-                                                : "bg-white dark:bg-zinc-900",
+                                                : "bg-white dark:bg-neo-dark-surface",
                                             index % 3 === 0 && "-rotate-1",
                                             index % 3 === 1 && "rotate-1"
                                         )}
@@ -231,10 +231,10 @@ export default function ZenMode() {
                                         <View className="flex-row items-center gap-4">
                                             <View
                                                 className={cn(
-                                                    "h-8 w-8 items-center justify-center border-4 border-black dark:border-white",
+                                                    "h-8 w-8 items-center justify-center border-4 border-black dark:border-neo-primary",
                                                     selectedTask === todo.text
-                                                        ? "bg-white dark:bg-black"
-                                                        : "bg-white dark:bg-zinc-900"
+                                                        ? "bg-white dark:bg-neo-dark-surface"
+                                                        : "bg-white dark:bg-neo-dark-surface"
                                                 )}
                                             >
                                                 {selectedTask === todo.text && (
@@ -268,10 +268,10 @@ export default function ZenMode() {
                             onPress={handleStartZen}
                             disabled={!selectedTask}
                             className={cn(
-                                "items-center justify-center border-5 border-black p-8 shadow-brutal-lg active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-white dark:shadow-brutal-dark-lg",
+                                "items-center justify-center border-5 border-black p-8 shadow-brutal-lg active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-lg",
                                 selectedTask
                                     ? "bg-neo-primary"
-                                    : "bg-gray-300 dark:bg-gray-700"
+                                    : "bg-gray-300 dark:bg-neo-dark-surface"
                             )}
                         >
                             <Text

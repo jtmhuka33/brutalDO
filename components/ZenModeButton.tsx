@@ -64,7 +64,7 @@ export default function ZenModeButton() {
             className="relative"
         >
             {/* Sale sticker style outer circle */}
-            <View className="h-20 w-20 items-center justify-center rounded-full border-5 border-black bg-neo-primary shadow-brutal-sm dark:border-white dark:shadow-brutal-dark-sm">
+            <View className="h-20 w-20 items-center justify-center rounded-full border-5 border-black bg-neo-primary shadow-brutal-sm dark:border-neo-primary dark:shadow-brutal-dark-sm">
                 {/* Inner content */}
                 <View className="items-center justify-center">
                     <Ionicons name="leaf-sharp" size={28} color="white" />
@@ -75,10 +75,10 @@ export default function ZenModeButton() {
             </View>
 
             {/* Decorative notches for sale sticker look */}
-            <View className="absolute -left-1 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-3 border-black bg-neo-primary dark:border-white" />
-            <View className="absolute -right-1 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-3 border-black bg-neo-primary dark:border-white" />
-            <View className="absolute left-1/2 -top-1 h-3 w-3 -translate-x-1/2 rotate-45 border-3 border-black bg-neo-primary dark:border-white" />
-            <View className="absolute -bottom-1 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-3 border-black bg-neo-primary dark:border-white" />
+            <View className="absolute -left-1 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-3 border-black bg-neo-primary dark:border-neo-primary" />
+            <View className="absolute -right-1 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-3 border-black bg-neo-primary dark:border-neo-primary" />
+            <View className="absolute left-1/2 -top-1 h-3 w-3 -translate-x-1/2 rotate-45 border-3 border-black bg-neo-primary dark:border-neo-primary" />
+            <View className="absolute -bottom-1 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-3 border-black bg-neo-primary dark:border-neo-primary" />
         </AnimatedPressable>
     );
 }
