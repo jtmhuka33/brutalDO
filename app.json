@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "brutalDO",
-    "slug": "brutalDO",
+    "slug": "brutraldo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -43,13 +43,22 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#ffffff",
-          "sounds": ["./assets/sounds/notification.wav"]
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ]
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "41242b79-42dd-4604-9ff1-41005ae1fa48"
+      }
+    },
+    "owner": "jtmhuka33"
   }
 }
