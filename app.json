@@ -4,11 +4,11 @@
     "slug": "brutraldo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
     "scheme": "brutaldo",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "icon": "./assets/ios.icon",
       "supportsTablet": true,
       "bundleIdentifier": "com.jtmhuka33.brutraldo",
       "infoPlist": {
@@ -33,7 +33,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/AppIocn.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -45,10 +45,11 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/AppIocn.png",
           "color": "#ffffff"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
