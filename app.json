@@ -8,7 +8,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "icon": "./assets/ios.icon",
+      "icon": {
+        "light": "./assets/ios/BrutalDoIcon-iOS-Default-1024x1024@1x.png",
+        "dark": "./assets/ios/BrutalDoIcon-iOS-Dark-1024x1024@1x.png",
+        "tinted": "./assets/ios/BrutalDoIcon-iOS-TintedLight-1024x1024@1x.png"
+      },
       "supportsTablet": true,
       "bundleIdentifier": "com.jtmhuka33.brutraldo",
       "infoPlist": {
@@ -22,7 +26,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.jtmhuka33.brutraldo"
     },
     "web": {
       "output": "static",
