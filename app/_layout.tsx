@@ -1,4 +1,3 @@
-import { Stack } from "expo-router";
 import "../global.css";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
@@ -8,24 +7,28 @@ import { Platform, View } from "react-native";
 import * as SystemUI from "expo-system-ui";
 import * as NavigationBar from "expo-navigation-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Drawer } from "expo-router/drawer";
 import {
     configureReanimatedLogger,
     ReanimatedLogLevel,
 } from "react-native-reanimated";
 
-// Configure Reanimated logger - must be called before any animations
+import { TodoListProvider } from "@/context/TodoListContext";
+import ProjectDrawer from "@/components/ProjectDrawer";
+
 configureReanimatedLogger({
     level: ReanimatedLogLevel.warn,
-    strict: false, // Disable strict mode to suppress the warnings
+    strict: false,
 });
 
 const COLORS = {
     light: {
-        background: "#FFF8F0", // neo.bg
+        background: "#FFF8F0",
         statusBar: "dark",
     },
     dark: {
-        background: "#0A0A0A", // neo.dark
+        background: "#0A0A0A",
         statusBar: "light",
     },
 };
@@ -34,7 +37,6 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
     const theme = isDark ? COLORS.dark : COLORS.light;
-    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         if (Platform.OS === "android") {
@@ -45,24 +47,40 @@ export default function RootLayout() {
     }, [isDark, theme]);
 
     return (
-        <View
-            style={{
-                flex: 1,
-                backgroundColor: theme.background,
-                paddingTop: insets.top,
-                paddingLeft: insets.left,
-                paddingRight: insets.right,
-            }}
-        >
-            <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-                <Stack screenOptions={{
-                    headerShown: false,
-                    animation: 'slide_from_right'
-                }}>
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                </Stack>
-                <StatusBar style={isDark ? "light" : "dark"} />
-            </ThemeProvider>
-        </View>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <TodoListProvider>
+                <View
+                    style={{
+                        flex: 1,
+                        backgroundColor: theme.background,
+                    }}
+                >
+                    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+                        <Drawer
+                            drawerContent={(props) => <ProjectDrawer {...props} />}
+                            screenOptions={{
+                                headerShown: false,
+                                drawerStyle: {
+                                    width: "80%",
+                                    backgroundColor: isDark ? "#0A0A0A" : "#FFF8F0",
+                                },
+                                drawerType: "front",
+                                swipeEdgeWidth: 50,
+                                swipeMinDistance: 10,
+                            }}
+                        >
+                            <Drawer.Screen
+                                name="(tabs)"
+                                options={{
+                                    headerShown: false,
+                                    swipeEnabled: true,
+                                }}
+                            />
+                        </Drawer>
+                        <StatusBar style={isDark ? "light" : "dark"} />
+                    </ThemeProvider>
+                </View>
+            </TodoListProvider>
+        </GestureHandlerRootView>
     );
 }

@@ -12,6 +12,7 @@ import {
     Keyboard,
     TouchableWithoutFeedback,
     Alert,
+    Pressable,
 } from "react-native";
 import Animated, {
     useSharedValue,
@@ -28,11 +29,15 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import * as Notifications from "expo-notifications";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useNavigation } from "expo-router";
+import { DrawerActions } from "@react-navigation/native";
+import * as Haptics from "expo-haptics";
 
 import TodoItem from "@/components/TodoItem";
 import FilterTabs from "@/components/FilterTabs";
 import { Todo, FilterType } from "@/types/todo";
+import { DEFAULT_LIST_ID } from "@/types/todoList";
+import { useTodoList } from "@/context/TodoListContext";
 import {
     registerForPushNotificationsAsync,
     scheduleNotification,
@@ -43,10 +48,7 @@ function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
 }
 
-// --- Constants ---
 const STORAGE_KEY = "@neo_brutal_todos_v2";
-
-// Cycle through these for new items
 const CARD_COLORS_COUNT = 6;
 
 const AnimatedTouchableOpacity =
@@ -61,25 +63,30 @@ export default function TodoApp() {
     const notificationListener = useRef<Notifications.EventSubscription>();
     const responseListener = useRef<Notifications.EventSubscription>();
     const insets = useSafeAreaInsets();
+    const navigation = useNavigation();
 
-    // Button animation
+    const { selectedListId, selectedList } = useTodoList();
+
     const buttonScale = useSharedValue(1);
+    const menuScale = useSharedValue(1);
 
     const buttonAnimatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: buttonScale.value }],
+    }));
+
+    const menuAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: menuScale.value }],
     }));
 
     // Initialize notifications
     useEffect(() => {
         registerForPushNotificationsAsync();
 
-        // This listener is fired whenever a notification is received while the app is foregrounded
         notificationListener.current =
             Notifications.addNotificationReceivedListener((notification) => {
                 console.log("Notification received:", notification);
             });
 
-        // This listener is fired whenever a user taps on or interacts with a notification
         responseListener.current =
             Notifications.addNotificationResponseReceivedListener((response) => {
                 console.log("Notification tapped:", response);
@@ -108,14 +115,12 @@ export default function TodoApp() {
         }
     }, []);
 
-    // Reload todos when screen is focused (handles returning from Zen mode)
     useFocusEffect(
         useCallback(() => {
             loadTodos();
         }, [loadTodos])
     );
 
-    // Save Todos whenever they change
     useEffect(() => {
         saveTodos(todos);
     }, [todos]);
@@ -128,26 +133,26 @@ export default function TodoApp() {
         }
     };
 
+    const handleOpenDrawer = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        menuScale.value = withSequence(
+            withSpring(0.85, { damping: 10, stiffness: 400 }),
+            withSpring(1, { damping: 8, stiffness: 350 })
+        );
+        navigation.dispatch(DrawerActions.openDrawer());
+    }, [navigation]);
+
     const handleAddOrUpdate = useCallback(() => {
         if (!text.trim()) return;
 
-        // Dismiss keyboard
         Keyboard.dismiss();
 
-        // Button bounce animation using withSequence instead of setTimeout
         buttonScale.value = withSequence(
-            withSpring(0.85, {
-                damping: 10,
-                stiffness: 400,
-            }),
-            withSpring(1, {
-                damping: 8,
-                stiffness: 350,
-            })
+            withSpring(0.85, { damping: 10, stiffness: 400 }),
+            withSpring(1, { damping: 8, stiffness: 350 })
         );
 
         if (editingId) {
-            // Edit existing
             setTodos((prev) =>
                 prev.map((t) =>
                     t.id === editingId ? { ...t, text: text.trim() } : t
@@ -155,17 +160,17 @@ export default function TodoApp() {
             );
             setEditingId(null);
         } else {
-            // Add new
             const newTodo: Todo = {
                 id: Date.now().toString(),
                 text: text.trim(),
                 completed: false,
                 colorVariant: Math.floor(Math.random() * CARD_COLORS_COUNT),
+                listId: selectedListId, // Assign to current list
             };
             setTodos((prev) => [newTodo, ...prev]);
         }
         setText("");
-    }, [text, editingId]);
+    }, [text, editingId, selectedListId]);
 
     const toggleComplete = useCallback((id: string) => {
         setTodos((prev) =>
@@ -177,7 +182,6 @@ export default function TodoApp() {
         async (id: string) => {
             const todo = todos.find((t) => t.id === id);
 
-            // Cancel notification if exists
             if (todo?.notificationId) {
                 await cancelNotification(todo.notificationId);
             }
@@ -197,7 +201,6 @@ export default function TodoApp() {
             const todo = todos.find((t) => t.id === id);
             if (!todo) return;
 
-            // Check if date is in the future
             if (date <= new Date()) {
                 Alert.alert("Invalid Time", "Please select a time in the future.", [
                     { text: "OK" },
@@ -205,12 +208,10 @@ export default function TodoApp() {
                 return;
             }
 
-            // Cancel existing notification if any
             if (todo.notificationId) {
                 await cancelNotification(todo.notificationId);
             }
 
-            // Schedule new notification
             const notificationId = await scheduleNotification(todo.text, date);
 
             setTodos((prev) =>
@@ -233,7 +234,6 @@ export default function TodoApp() {
             const todo = todos.find((t) => t.id === id);
             if (!todo || !todo.notificationId) return;
 
-            // Cancel the notification
             await cancelNotification(todo.notificationId);
 
             setTodos((prev) =>
@@ -252,7 +252,6 @@ export default function TodoApp() {
     );
 
     const handleSetDueDate = useCallback((id: string, date: Date) => {
-        // Set the due date to end of day for proper comparison
         const dueDate = new Date(date);
         dueDate.setHours(23, 59, 59, 999);
 
@@ -281,48 +280,46 @@ export default function TodoApp() {
         );
     }, []);
 
-    // Sort and Filter Logic
+    // Filter todos by selected list AND filter type
     const sortedAndFilteredTodos = useMemo(() => {
-        // First filter
+        // First filter by list
+        let listFiltered = todos.filter((t) => {
+            // Handle legacy todos without listId - assign to inbox
+            const todoListId = t.listId || DEFAULT_LIST_ID;
+            return todoListId === selectedListId;
+        });
+
+        // Then filter by completion status
         let filtered: Todo[];
         switch (filter) {
             case "TODO":
-                filtered = todos.filter((t) => !t.completed);
+                filtered = listFiltered.filter((t) => !t.completed);
                 break;
             case "DONE":
-                filtered = todos.filter((t) => t.completed);
+                filtered = listFiltered.filter((t) => t.completed);
                 break;
             default:
-                filtered = [...todos];
+                filtered = [...listFiltered];
         }
 
-        // Then sort:
-        // 1. Incomplete tasks with due dates (sorted by due date, earliest first)
-        // 2. Incomplete tasks without due dates (sorted by creation, newest first)
-        // 3. Completed tasks (sorted by creation, newest first)
+        // Sort
         return filtered.sort((a, b) => {
-            // Completed tasks always go to the bottom
             if (a.completed && !b.completed) return 1;
             if (!a.completed && b.completed) return -1;
 
-            // Both completed or both incomplete
             if (!a.completed && !b.completed) {
-                // Both have due dates - sort by due date (earliest first)
                 if (a.dueDate && b.dueDate) {
                     const dateA = new Date(a.dueDate).getTime();
                     const dateB = new Date(b.dueDate).getTime();
                     return dateA - dateB;
                 }
-                // Only a has due date - a comes first
                 if (a.dueDate && !b.dueDate) return -1;
-                // Only b has due date - b comes first
                 if (!a.dueDate && b.dueDate) return 1;
             }
 
-            // Both don't have due dates or both completed - maintain original order (newest first)
             return parseInt(b.id) - parseInt(a.id);
         });
-    }, [todos, filter]);
+    }, [todos, filter, selectedListId]);
 
     const renderTodoItem = useCallback(
         ({ item, index }: { item: Todo; index: number }) => (
@@ -353,21 +350,35 @@ export default function TodoApp() {
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            <View className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark">
+            <View className="flex-1 bg-neo-bg px-6 pt-8 dark:bg-neo-dark">
                 <StatusBar style="auto" />
 
-                {/* Header - More aggressive typography */}
+                {/* Header with Menu Button */}
                 <Animated.View
                     entering={FadeIn.duration(400).springify()}
-                    className="mb-10 flex flex-row items-center justify-between"
+                    className="mb-6 flex flex-row items-center justify-between"
                 >
-                    <View className="flex-row items-center gap-4">
-                        <Text className="text-5xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight">
-                            Brutal
-                        </Text>
-                        <View className="h-4 w-4 bg-neo-accent border-4 border-black rotate-45 dark:border-neo-primary" />
-                        <Text className="text-5xl font-black uppercase tracking-tighter text-neo-primary underline decoration-8 decoration-black dark:decoration-neo-primary leading-tight">
-                            Do
+                    {/* Menu Button */}
+                    <Animated.View style={menuAnimatedStyle}>
+                        <Pressable
+                            onPress={handleOpenDrawer}
+                            className="mr-4 h-14 w-14 items-center justify-center border-5 border-black bg-neo-accent shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-primary dark:shadow-brutal-dark-sm"
+                        >
+                            <Ionicons
+                                name="menu-sharp"
+                                size={28}
+                                color={colorScheme === "dark" ? "white" : "black"}
+                            />
+                        </Pressable>
+                    </Animated.View>
+
+                    {/* Title - Now shows current list name */}
+                    <View className="flex-1 flex-row items-center gap-3">
+                        <Text
+                            className="text-3xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight"
+                            numberOfLines={1}
+                        >
+                            {selectedList?.name || "Inbox"}
                         </Text>
                     </View>
 
@@ -378,7 +389,7 @@ export default function TodoApp() {
                 {/* Filter Tabs */}
                 <FilterTabs activeFilter={filter} onFilterChange={setFilter} />
 
-                {/* Input Area - More brutal */}
+                {/* Input Area */}
                 <KeyboardAvoidingView
                     behavior={Platform.OS === "ios" ? "padding" : "height"}
                     className="mb-8 flex-row gap-4"

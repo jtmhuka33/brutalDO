@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
     View,
     Text,
@@ -20,6 +20,8 @@ import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import { Todo } from "@/types/todo";
+import { DEFAULT_LIST_ID } from "@/types/todoList";
+import { useTodoList } from "@/context/TodoListContext";
 import { cancelNotification } from "@/utils/notifications";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -33,12 +35,13 @@ export default function ZenMode() {
     const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
     const [timerStarted, setTimerStarted] = useState(false);
     const insets = useSafeAreaInsets();
+    const { selectedListId, selectedList } = useTodoList();
 
     // Reload todos when screen is focused
     useFocusEffect(
         useCallback(() => {
             loadTodos();
-        }, [])
+        }, [selectedListId])
     );
 
     const loadTodos = async () => {
@@ -46,8 +49,11 @@ export default function ZenMode() {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const allTodos: Todo[] = JSON.parse(stored);
-                // Only show incomplete tasks
-                setTodos(allTodos.filter((t) => !t.completed));
+                // Only show incomplete tasks from the selected list
+                setTodos(allTodos.filter((t) => {
+                    const todoListId = t.listId || DEFAULT_LIST_ID;
+                    return !t.completed && todoListId === selectedListId;
+                }));
             }
         } catch (e) {
             console.error("Failed to load todos");
@@ -83,21 +89,21 @@ export default function ZenMode() {
                     await cancelNotification(todo.notificationId);
                 }
 
-                // Mark the task as completed
                 const updatedTodos = allTodos.map((t) =>
                     t.id === taskId ? { ...t, completed: true } : t
                 );
 
                 await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTodos));
 
-                // Update local state
-                setTodos(updatedTodos.filter((t) => !t.completed));
+                setTodos(updatedTodos.filter((t) => {
+                    const todoListId = t.listId || DEFAULT_LIST_ID;
+                    return !t.completed && todoListId === selectedListId;
+                }));
             }
         } catch (e) {
             console.error("Failed to complete todo");
         }
 
-        // Reset timer state and go back to task selection
         setTimerStarted(false);
         setSelectedTodo(null);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -163,6 +169,14 @@ export default function ZenMode() {
                             </Text>
                             <Ionicons name="leaf-sharp" size={32} color="#FF0055" />
                         </View>
+                    </View>
+
+                    {/* Current List Indicator */}
+                    <View className="mb-6 flex-row items-center gap-2">
+                        <Ionicons name="folder-sharp" size={16} color="#FF0055" />
+                        <Text className="text-sm font-black uppercase tracking-widest text-neo-primary">
+                            {selectedList?.name || "Inbox"}
+                        </Text>
                     </View>
 
                     {/* Task Selection */}

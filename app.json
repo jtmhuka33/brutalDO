@@ -38,7 +38,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/AppIocn.png",
+          "image": "./assets/ios/BrutalDoIcon-iOS-Default-1024x1024@1x.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
