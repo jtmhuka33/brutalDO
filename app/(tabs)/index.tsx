@@ -35,7 +35,8 @@ import * as Haptics from "expo-haptics";
 
 import TodoItem from "@/components/TodoItem";
 import FilterTabs from "@/components/FilterTabs";
-import { Todo, FilterType } from "@/types/todo";
+import SortSelector from "@/components/SortSelector";
+import { Todo, FilterType, SortType } from "@/types/todo";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
 import {
@@ -49,6 +50,7 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 }
 
 const STORAGE_KEY = "@neo_brutal_todos_v2";
+const SORT_STORAGE_KEY = "@neo_brutal_sort_v1";
 const CARD_COLORS_COUNT = 6;
 
 const AnimatedTouchableOpacity =
@@ -59,6 +61,7 @@ export default function TodoApp() {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>("ALL");
+    const [sortBy, setSortBy] = useState<SortType>("DEFAULT");
     const colorScheme = useColorScheme();
     const notificationListener = useRef<Notifications.EventSubscription>();
     const responseListener = useRef<Notifications.EventSubscription>();
@@ -115,10 +118,20 @@ export default function TodoApp() {
         }
     }, []);
 
+    const loadSortPreference = useCallback(async () => {
+        try {
+            const stored = await AsyncStorage.getItem(SORT_STORAGE_KEY);
+            if (stored) setSortBy(stored as SortType);
+        } catch (e) {
+            console.error("Failed to load sort preference");
+        }
+    }, []);
+
     useFocusEffect(
         useCallback(() => {
             loadTodos();
-        }, [loadTodos])
+            loadSortPreference();
+        }, [loadTodos, loadSortPreference])
     );
 
     useEffect(() => {
@@ -132,6 +145,15 @@ export default function TodoApp() {
             console.error("Failed to save todos");
         }
     };
+
+    const handleSortChange = useCallback(async (newSort: SortType) => {
+        setSortBy(newSort);
+        try {
+            await AsyncStorage.setItem(SORT_STORAGE_KEY, newSort);
+        } catch (e) {
+            console.error("Failed to save sort preference");
+        }
+    }, []);
 
     const handleOpenDrawer = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -280,7 +302,7 @@ export default function TodoApp() {
         );
     }, []);
 
-    // Filter todos by selected list AND filter type
+    // Filter todos by selected list AND filter type, then apply sorting
     const sortedAndFilteredTodos = useMemo(() => {
         // First filter by list
         let listFiltered = todos.filter((t) => {
@@ -302,24 +324,56 @@ export default function TodoApp() {
                 filtered = [...listFiltered];
         }
 
-        // Sort
+        // Apply sorting
         return filtered.sort((a, b) => {
+            // Always keep completed items at the bottom
             if (a.completed && !b.completed) return 1;
             if (!a.completed && b.completed) return -1;
 
-            if (!a.completed && !b.completed) {
-                if (a.dueDate && b.dueDate) {
-                    const dateA = new Date(a.dueDate).getTime();
-                    const dateB = new Date(b.dueDate).getTime();
-                    return dateA - dateB;
-                }
-                if (a.dueDate && !b.dueDate) return -1;
-                if (!a.dueDate && b.dueDate) return 1;
-            }
+            // For items with same completion status, apply user-selected sort
+            switch (sortBy) {
+                case "ALPHA_ASC":
+                    return a.text.localeCompare(b.text, undefined, { sensitivity: "base" });
 
-            return parseInt(b.id) - parseInt(a.id);
+                case "ALPHA_DESC":
+                    return b.text.localeCompare(a.text, undefined, { sensitivity: "base" });
+
+                case "DUE_ASC":
+                    // Items with due dates come first, sorted earliest to latest
+                    if (a.dueDate && b.dueDate) {
+                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                    }
+                    if (a.dueDate && !b.dueDate) return -1;
+                    if (!a.dueDate && b.dueDate) return 1;
+                    // If neither has due date, sort by creation (newest first)
+                    return parseInt(b.id) - parseInt(a.id);
+
+                case "DUE_DESC":
+                    // Items with due dates come first, sorted latest to earliest
+                    if (a.dueDate && b.dueDate) {
+                        return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+                    }
+                    if (a.dueDate && !b.dueDate) return -1;
+                    if (!a.dueDate && b.dueDate) return 1;
+                    // If neither has due date, sort by creation (newest first)
+                    return parseInt(b.id) - parseInt(a.id);
+
+                case "DEFAULT":
+                default:
+                    // Original behavior: due date priority, then by creation
+                    if (!a.completed && !b.completed) {
+                        if (a.dueDate && b.dueDate) {
+                            const dateA = new Date(a.dueDate).getTime();
+                            const dateB = new Date(b.dueDate).getTime();
+                            return dateA - dateB;
+                        }
+                        if (a.dueDate && !b.dueDate) return -1;
+                        if (!a.dueDate && b.dueDate) return 1;
+                    }
+                    return parseInt(b.id) - parseInt(a.id);
+            }
         });
-    }, [todos, filter, selectedListId]);
+    }, [todos, filter, selectedListId, sortBy]);
 
     const renderTodoItem = useCallback(
         ({ item, index }: { item: Todo; index: number }) => (
@@ -389,6 +443,9 @@ export default function TodoApp() {
                 {/* Filter Tabs */}
                 <FilterTabs activeFilter={filter} onFilterChange={setFilter} />
 
+                {/* Sort Selector */}
+                <SortSelector activeSort={sortBy} onSortChange={handleSortChange} />
+
                 {/* Input Area */}
                 <KeyboardAvoidingView
                     behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -428,6 +485,7 @@ export default function TodoApp() {
                 {/* List */}
                 <FlatList
                     data={sortedAndFilteredTodos}
+                    extraData={sortBy}
                     keyExtractor={keyExtractor}
                     renderItem={renderTodoItem}
                     contentContainerStyle={{

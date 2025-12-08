@@ -10,3 +10,11 @@ export interface Todo {
 }
 
 export type FilterType = "ALL" | "TODO" | "DONE";
+
+export type SortType = "DEFAULT" | "ALPHA_ASC" | "ALPHA_DESC" | "DUE_ASC" | "DUE_DESC";
+
+export interface SortOption {
+    value: SortType;
+    label: string;
+    icon: string;
+}
