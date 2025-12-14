@@ -12,6 +12,9 @@ import Animated, {
     FadeOut,
 } from "react-native-reanimated";
 
+import RecurrencePicker from "./RecurrencePicker";
+import { RecurrencePattern } from "@/types/recurrence";
+
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
 }
@@ -19,10 +22,13 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 interface DatePickerPanelProps {
     reminderDate?: string;
     dueDate?: string;
+    recurrence?: RecurrencePattern;
     onSetReminder: (date: Date) => void;
     onClearReminder: () => void;
     onSetDueDate: (date: Date) => void;
     onClearDueDate: () => void;
+    onSetRecurrence: (pattern: RecurrencePattern) => void;
+    onClearRecurrence: () => void;
 }
 
 type PickerMode = "reminder" | "dueDate" | null;
@@ -32,10 +38,13 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export default function DatePickerPanel({
                                             reminderDate,
                                             dueDate,
+                                            recurrence,
                                             onSetReminder,
                                             onClearReminder,
                                             onSetDueDate,
                                             onClearDueDate,
+                                            onSetRecurrence,
+                                            onClearRecurrence,
                                         }: DatePickerPanelProps) {
     const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
     const [pickerMode, setPickerMode] = useState<PickerMode>(null);
@@ -255,6 +264,13 @@ export default function DatePickerPanel({
                     </Text>
                 </AnimatedPressable>
             </View>
+
+            {/* Recurrence Section */}
+            <RecurrencePicker
+                recurrence={recurrence}
+                onSetRecurrence={onSetRecurrence}
+                onClearRecurrence={onClearRecurrence}
+            />
 
             {/* Reminder Section */}
             <View className="gap-2 mt-2">

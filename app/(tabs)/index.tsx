@@ -35,8 +35,8 @@ import * as Haptics from "expo-haptics";
 
 import TodoItem from "@/components/TodoItem";
 import FilterTabs from "@/components/FilterTabs";
-import SortSelector from "@/components/SortSelector";
-import { Todo, FilterType, SortType } from "@/types/todo";
+import {Todo, FilterType, SortType} from "@/types/todo";
+import { RecurrencePattern } from "@/types/recurrence";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
 import {
@@ -44,6 +44,8 @@ import {
     scheduleNotification,
     cancelNotification,
 } from "@/utils/notifications";
+import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
+import SortSelector from "@/components/SortSelector";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -130,8 +132,7 @@ export default function TodoApp() {
     useFocusEffect(
         useCallback(() => {
             loadTodos();
-            loadSortPreference();
-        }, [loadTodos, loadSortPreference])
+        }, [loadTodos])
     );
 
     useEffect(() => {
@@ -194,11 +195,59 @@ export default function TodoApp() {
         setText("");
     }, [text, editingId, selectedListId]);
 
-    const toggleComplete = useCallback((id: string) => {
-        setTodos((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-        );
-    }, []);
+    const toggleComplete = useCallback(
+        async (id: string) => {
+            const todo = todos.find((t) => t.id === id);
+            if (!todo) return;
+
+            const isCompletingTask = !todo.completed;
+
+            // If completing a recurring task, create the next occurrence
+            if (isCompletingTask && isRecurrenceActive(todo.recurrence)) {
+                const nextTodo = createNextRecurringTodo(
+                    todo,
+                    Math.floor(Math.random() * CARD_COLORS_COUNT)
+                );
+
+                if (nextTodo) {
+                    // Show feedback that next task was created
+                    await Haptics.notificationAsync(
+                        Haptics.NotificationFeedbackType.Success
+                    );
+
+                    setTodos((prev) => {
+                        const updated = prev.map((t) =>
+                            t.id === id ? { ...t, completed: true } : t
+                        );
+                        // Add the new recurring task
+                        return [nextTodo, ...updated];
+                    });
+
+                    // Show a brief notification
+                    Alert.alert(
+                        "Task Completed! 🎉",
+                        `Next "${todo.text}" scheduled for ${new Date(
+                            nextTodo.dueDate!
+                        ).toLocaleDateString("en-US", {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                        })}`,
+                        [{ text: "Got it!" }]
+                    );
+                    return;
+                }
+            }
+
+            // Normal toggle for non-recurring or tasks that have ended recurrence
+            setTodos((prev) =>
+                prev.map((t) =>
+                    t.id === id ? { ...t, completed: !t.completed } : t
+                )
+            );
+        },
+        [todos]
+    );
 
     const deleteTodo = useCallback(
         async (id: string) => {
@@ -302,7 +351,38 @@ export default function TodoApp() {
         );
     }, []);
 
-    // Filter todos by selected list AND filter type, then apply sorting
+    const handleSetRecurrence = useCallback(
+        (id: string, pattern: RecurrencePattern) => {
+            setTodos((prev) =>
+                prev.map((t) =>
+                    t.id === id
+                        ? {
+                            ...t,
+                            recurrence: pattern,
+                            isRecurring: pattern.type !== "none",
+                        }
+                        : t
+                )
+            );
+        },
+        []
+    );
+
+    const handleClearRecurrence = useCallback((id: string) => {
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === id
+                    ? {
+                        ...t,
+                        recurrence: undefined,
+                        isRecurring: false,
+                    }
+                    : t
+            )
+        );
+    }, []);
+
+    // Filter todos by selected list AND filter type
     const sortedAndFilteredTodos = useMemo(() => {
         // First filter by list
         let listFiltered = todos.filter((t) => {
@@ -324,9 +404,8 @@ export default function TodoApp() {
                 filtered = [...listFiltered];
         }
 
-        // Apply sorting
+        // Sort
         return filtered.sort((a, b) => {
-            // Always keep completed items at the bottom
             if (a.completed && !b.completed) return 1;
             if (!a.completed && b.completed) return -1;
 
@@ -373,7 +452,7 @@ export default function TodoApp() {
                     return parseInt(b.id) - parseInt(a.id);
             }
         });
-    }, [todos, filter, selectedListId, sortBy]);
+    }, [todos, filter, selectedListId]);
 
     const renderTodoItem = useCallback(
         ({ item, index }: { item: Todo; index: number }) => (
@@ -387,6 +466,8 @@ export default function TodoApp() {
                 onClearReminder={handleClearReminder}
                 onSetDueDate={handleSetDueDate}
                 onClearDueDate={handleClearDueDate}
+                onSetRecurrence={handleSetRecurrence}
+                onClearRecurrence={handleClearRecurrence}
             />
         ),
         [
@@ -397,6 +478,8 @@ export default function TodoApp() {
             handleClearReminder,
             handleSetDueDate,
             handleClearDueDate,
+            handleSetRecurrence,
+            handleClearRecurrence,
         ]
     );
 

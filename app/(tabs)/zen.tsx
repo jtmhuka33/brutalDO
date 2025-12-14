@@ -6,6 +6,7 @@ import {
     ScrollView,
     TouchableWithoutFeedback,
     Keyboard,
+    Alert,
 } from "react-native";
 import { router } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -23,12 +24,14 @@ import { Todo } from "@/types/todo";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
 import { cancelNotification } from "@/utils/notifications";
+import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
 }
 
 const STORAGE_KEY = "@neo_brutal_todos_v2";
+const CARD_COLORS_COUNT = 6;
 
 export default function ZenMode() {
     const [todos, setTodos] = useState<Todo[]>([]);
@@ -83,15 +86,57 @@ export default function ZenMode() {
             if (stored) {
                 const allTodos: Todo[] = JSON.parse(stored);
 
-                // Find the todo and cancel its notification if exists
+                // Find the todo
                 const todo = allTodos.find((t) => t.id === taskId);
-                if (todo?.notificationId) {
+                if (!todo) return;
+
+                // Cancel notification if exists
+                if (todo.notificationId) {
                     await cancelNotification(todo.notificationId);
                 }
 
-                const updatedTodos = allTodos.map((t) =>
-                    t.id === taskId ? { ...t, completed: true } : t
-                );
+                let updatedTodos: Todo[];
+
+                // Check if this is a recurring task
+                if (isRecurrenceActive(todo.recurrence)) {
+                    const nextTodo = createNextRecurringTodo(
+                        todo,
+                        Math.floor(Math.random() * CARD_COLORS_COUNT)
+                    );
+
+                    if (nextTodo) {
+                        // Mark current as completed and add the next occurrence
+                        updatedTodos = allTodos.map((t) =>
+                            t.id === taskId ? { ...t, completed: true } : t
+                        );
+                        updatedTodos = [nextTodo, ...updatedTodos];
+
+                        // Show notification about next occurrence
+                        setTimeout(() => {
+                            Alert.alert(
+                                "Task Completed! 🎉",
+                                `Next "${todo.text}" scheduled for ${new Date(
+                                    nextTodo.dueDate!
+                                ).toLocaleDateString("en-US", {
+                                    weekday: "short",
+                                    month: "short",
+                                    day: "numeric",
+                                })}`,
+                                [{ text: "Got it!" }]
+                            );
+                        }, 300);
+                    } else {
+                        // Recurrence ended
+                        updatedTodos = allTodos.map((t) =>
+                            t.id === taskId ? { ...t, completed: true } : t
+                        );
+                    }
+                } else {
+                    // Normal non-recurring task
+                    updatedTodos = allTodos.map((t) =>
+                        t.id === taskId ? { ...t, completed: true } : t
+                    );
+                }
 
                 await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTodos));
 
@@ -111,6 +156,33 @@ export default function ZenMode() {
 
     const handleBack = () => {
         router.back();
+    };
+
+    // Helper to format recurrence for display
+    const getRecurrenceLabel = (todo: Todo): string | null => {
+        if (!isRecurrenceActive(todo.recurrence)) return null;
+
+        switch (todo.recurrence?.type) {
+            case "daily":
+                return "DAILY";
+            case "weekdays":
+                return "M-F";
+            case "weekly":
+                return "WEEKLY";
+            case "biweekly":
+                return "2 WEEKS";
+            case "monthly":
+                return "MONTHLY";
+            case "yearly":
+                return "YEARLY";
+            case "custom":
+                if (todo.recurrence.interval && todo.recurrence.unit) {
+                    return `${todo.recurrence.interval}${todo.recurrence.unit.charAt(0).toUpperCase()}`;
+                }
+                return "CUSTOM";
+            default:
+                return null;
+        }
     };
 
     if (timerStarted && selectedTodo) {
@@ -200,49 +272,79 @@ export default function ZenMode() {
                             </View>
                         ) : (
                             <View className="gap-4">
-                                {todos.map((todo, index) => (
-                                    <Pressable
-                                        key={todo.id}
-                                        onPress={() => handleTaskSelect(todo)}
-                                        className={cn(
-                                            "border-5 border-black p-5 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                                            selectedTodo?.id === todo.id
-                                                ? "bg-neo-primary"
-                                                : "bg-white dark:bg-neo-dark-surface",
-                                            index % 3 === 0 && "-rotate-1",
-                                            index % 3 === 1 && "rotate-1"
-                                        )}
-                                    >
-                                        <View className="flex-row items-center gap-4">
-                                            <View
-                                                className={cn(
-                                                    "h-8 w-8 items-center justify-center border-4 border-black dark:border-neo-primary",
-                                                    selectedTodo?.id === todo.id
-                                                        ? "bg-white dark:bg-neo-dark-surface"
-                                                        : "bg-white dark:bg-neo-dark-surface"
-                                                )}
-                                            >
-                                                {selectedTodo?.id === todo.id && (
-                                                    <Ionicons
-                                                        name="checkmark-sharp"
-                                                        size={20}
-                                                        color="#FF0055"
-                                                    />
-                                                )}
+                                {todos.map((todo, index) => {
+                                    const recurrenceLabel = getRecurrenceLabel(todo);
+
+                                    return (
+                                        <Pressable
+                                            key={todo.id}
+                                            onPress={() => handleTaskSelect(todo)}
+                                            className={cn(
+                                                "border-5 border-black p-5 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
+                                                selectedTodo?.id === todo.id
+                                                    ? "bg-neo-primary"
+                                                    : "bg-white dark:bg-neo-dark-surface",
+                                                index % 3 === 0 && "-rotate-1",
+                                                index % 3 === 1 && "rotate-1"
+                                            )}
+                                        >
+                                            <View className="flex-row items-center gap-4">
+                                                <View
+                                                    className={cn(
+                                                        "h-8 w-8 items-center justify-center border-4 border-black dark:border-neo-primary",
+                                                        selectedTodo?.id === todo.id
+                                                            ? "bg-white dark:bg-neo-dark-surface"
+                                                            : "bg-white dark:bg-neo-dark-surface"
+                                                    )}
+                                                >
+                                                    {selectedTodo?.id === todo.id && (
+                                                        <Ionicons
+                                                            name="checkmark-sharp"
+                                                            size={20}
+                                                            color="#FF0055"
+                                                        />
+                                                    )}
+                                                </View>
+                                                <View className="flex-1">
+                                                    <Text
+                                                        className={cn(
+                                                            "text-lg font-black uppercase tracking-tight",
+                                                            selectedTodo?.id === todo.id
+                                                                ? "text-white"
+                                                                : "text-black dark:text-white"
+                                                        )}
+                                                    >
+                                                        {todo.text}
+                                                    </Text>
+                                                    {/* Recurrence indicator */}
+                                                    {recurrenceLabel && (
+                                                        <View className="flex-row items-center gap-1 mt-1">
+                                                            <Ionicons
+                                                                name="repeat-sharp"
+                                                                size={12}
+                                                                color={
+                                                                    selectedTodo?.id === todo.id
+                                                                        ? "white"
+                                                                        : "#B000FF"
+                                                                }
+                                                            />
+                                                            <Text
+                                                                className={cn(
+                                                                    "text-xs font-black uppercase",
+                                                                    selectedTodo?.id === todo.id
+                                                                        ? "text-white/80"
+                                                                        : "text-neo-purple"
+                                                                )}
+                                                            >
+                                                                {recurrenceLabel}
+                                                            </Text>
+                                                        </View>
+                                                    )}
+                                                </View>
                                             </View>
-                                            <Text
-                                                className={cn(
-                                                    "flex-1 text-lg font-black uppercase tracking-tight",
-                                                    selectedTodo?.id === todo.id
-                                                        ? "text-white"
-                                                        : "text-black dark:text-white"
-                                                )}
-                                            >
-                                                {todo.text}
-                                            </Text>
-                                        </View>
-                                    </Pressable>
-                                ))}
+                                        </Pressable>
+                                    );
+                                })}
                             </View>
                         )}
                     </Animated.View>
