@@ -57,6 +57,21 @@ interface TodoItemProps {
     onClearRecurrence: (id: string) => void;
 }
 
+// Helper function to get date priority
+const getDatePriority = (dueDate: string): number => {
+    const date = new Date(dueDate);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 0; // Overdue
+    if (diffDays === 0) return 1; // Today
+    if (diffDays === 1) return 2; // Tomorrow
+    return 3; // Future
+};
+
 export default function TodoItem({
                                      item,
                                      index,
@@ -144,39 +159,36 @@ export default function TodoItem({
     }, []);
 
     const formatDueDateBadge = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const isToday = date.toDateString() === now.toDateString();
-        const isTomorrow =
-            date.toDateString() ===
-            new Date(now.getTime() + 86400000).toDateString();
-        const isYesterday =
-            date.toDateString() ===
-            new Date(now.getTime() - 86400000).toDateString();
+        const priority = getDatePriority(dateString);
 
-        if (isToday) return "TODAY";
-        if (isTomorrow) return "TMR";
-        if (isYesterday) return "LATE";
-
-        return date
-            .toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-            })
-            .toUpperCase();
+        switch (priority) {
+            case 0:
+                return "OVERDUE";
+            case 1:
+                return "TODAY";
+            case 2:
+                return "TOMORROW";
+            default:
+                const date = new Date(dateString);
+                return date
+                    .toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                    })
+                    .toUpperCase();
+        }
     };
 
     const isDueDateOverdue = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        date.setHours(23, 59, 59, 999);
-        return date < now;
+        return getDatePriority(dateString) === 0;
     };
 
     const isDueDateToday = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        return date.toDateString() === now.toDateString();
+        return getDatePriority(dateString) === 1;
+    };
+
+    const isDueDateTomorrow = (dateString: string) => {
+        return getDatePriority(dateString) === 2;
     };
 
     const hasRecurrence = isRecurrenceActive(item.recurrence);
@@ -189,9 +201,7 @@ export default function TodoItem({
             style={animatedStyle}
             className={cn(
                 "mb-6 border-5 p-5 shadow-brutal",
-                item.completed
-                    ? "bg-gray-300 dark:bg-neo-dark-surface border-black dark:border-gray-600"
-                    : `${colorClass} border-black dark:border-neo-primary`,
+                `${colorClass} border-black dark:border-neo-primary`,
                 "dark:shadow-brutal-dark",
                 index % 3 === 0 && "-rotate-1",
                 index % 3 === 1 && "rotate-1"
@@ -203,39 +213,67 @@ export default function TodoItem({
                     className="flex-1 flex-row items-center gap-4"
                     activeOpacity={0.7}
                 >
-                    {/* BRUTAL Checkbox */}
+                    {/* Archive Checkbox */}
                     <View
-                        className={cn(
-                            "h-10 w-10 border-5 border-black bg-white items-center justify-center shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm",
-                            item.completed && "bg-black dark:bg-neo-primary"
-                        )}
+                        className="h-10 w-10 border-5 border-black bg-white items-center justify-center shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
                     >
-                        {item.completed && (
-                            <Ionicons
-                                name="checkmark-sharp"
-                                size={24}
-                                color="white"
-                                style={{ fontWeight: "900" }}
-                            />
-                        )}
+                        <Ionicons
+                            name="checkmark-sharp"
+                            size={24}
+                            color="#ccc"
+                            style={{ opacity: 0.3 }}
+                        />
                     </View>
 
                     <View className="flex-1 gap-1">
                         <Text
-                            className={cn(
-                                "text-xl font-black uppercase tracking-tight",
-                                item.completed
-                                    ? "line-through opacity-50 text-black dark:text-gray-400"
-                                    : "text-black dark:text-black"
-                            )}
+                            className="text-xl font-black uppercase tracking-tight text-black dark:text-black"
                         >
                             {item.text}
                         </Text>
 
                         {/* Badges Row */}
                         <View className="flex-row flex-wrap items-center gap-2 mt-1">
+                            {/* Due Date Badge - with priority colors */}
+                            {item.dueDate && (
+                                <View
+                                    className={cn(
+                                        "flex-row items-center gap-1 px-2 py-1 border-3 border-black",
+                                        isDueDateOverdue(item.dueDate)
+                                            ? "bg-neo-primary"
+                                            : isDueDateToday(item.dueDate)
+                                                ? "bg-neo-orange"
+                                                : isDueDateTomorrow(item.dueDate)
+                                                    ? "bg-neo-accent"
+                                                    : "bg-white dark:bg-neo-dark-surface"
+                                    )}
+                                >
+                                    <Ionicons
+                                        name="calendar-sharp"
+                                        size={12}
+                                        color={
+                                            isDueDateOverdue(item.dueDate) ||
+                                            isDueDateToday(item.dueDate)
+                                                ? "white"
+                                                : "black"
+                                        }
+                                    />
+                                    <Text
+                                        className={cn(
+                                            "text-xs font-black uppercase tracking-tight",
+                                            isDueDateOverdue(item.dueDate) ||
+                                            isDueDateToday(item.dueDate)
+                                                ? "text-white"
+                                                : "text-black dark:text-black"
+                                        )}
+                                    >
+                                        {formatDueDateBadge(item.dueDate)}
+                                    </Text>
+                                </View>
+                            )}
+
                             {/* Recurrence Badge */}
-                            {hasRecurrence && !item.completed && (
+                            {hasRecurrence && (
                                 <View className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-purple">
                                     <Ionicons name="repeat-sharp" size={12} color="white" />
                                     <Text className="text-xs font-black uppercase tracking-tight text-white">
@@ -244,59 +282,23 @@ export default function TodoItem({
                                 </View>
                             )}
 
-                            {/* Due Date Badge - inline display */}
-                            {item.dueDate && !item.completed && (
-                                <>
-                                    <View
-                                        className={cn(
-                                            "flex-row items-center gap-1 px-2 py-1 border-3 border-black",
-                                            isDueDateOverdue(item.dueDate)
-                                                ? "bg-neo-primary"
-                                                : isDueDateToday(item.dueDate)
-                                                    ? "bg-neo-orange"
-                                                    : "bg-white dark:bg-neo-dark-surface"
-                                        )}
-                                    >
-                                        <Ionicons
-                                            name="calendar-sharp"
-                                            size={12}
-                                            color={
-                                                isDueDateOverdue(item.dueDate) ||
-                                                isDueDateToday(item.dueDate)
-                                                    ? "white"
-                                                    : "black"
-                                            }
-                                        />
-                                        <Text
-                                            className={cn(
-                                                "text-xs font-black uppercase tracking-tight",
-                                                isDueDateOverdue(item.dueDate) ||
-                                                isDueDateToday(item.dueDate)
-                                                    ? "text-white"
-                                                    : "text-black dark:text-white"
-                                            )}
-                                        >
-                                            {formatDueDateBadge(item.dueDate)}
-                                        </Text>
-                                    </View>
-                                    {isDueDateOverdue(item.dueDate) && (
-                                        <Text className="text-xs font-black uppercase text-neo-primary">
-                                            OVERDUE!
-                                        </Text>
-                                    )}
-                                </>
+                            {/* Reminder indicator */}
+                            {item.reminderDate && (
+                                <View className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-green">
+                                    <Ionicons name="alarm-sharp" size={12} color="black" />
+                                </View>
                             )}
 
                             {/* No Due Date indicator */}
-                            {!item.dueDate && !item.completed && !hasRecurrence && (
+                            {!item.dueDate && !hasRecurrence && (
                                 <View className="flex-row items-center gap-1 opacity-50">
                                     <Ionicons
                                         name="calendar-outline"
                                         size={12}
-                                        color={colorScheme === "dark" ? "#666" : "#999"}
+                                        color="#666"
                                     />
-                                    <Text className="text-xs font-black uppercase tracking-tight text-gray-500 dark:text-gray-500">
-                                        NO DUE DATE
+                                    <Text className="text-xs font-black uppercase tracking-tight text-gray-600 dark:text-gray-600">
+                                        NO DATE
                                     </Text>
                                 </View>
                             )}
@@ -304,7 +306,7 @@ export default function TodoItem({
                     </View>
                 </TouchableOpacity>
 
-                {/* Action Buttons - more aggressive styling */}
+                {/* Action Buttons */}
                 <View className="flex-row gap-3">
                     <Pressable
                         onPress={toggleDatePicker}

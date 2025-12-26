@@ -34,8 +34,9 @@ import { DrawerActions } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 
 import TodoItem from "@/components/TodoItem";
-import FilterTabs from "@/components/FilterTabs";
-import {Todo, FilterType, SortType} from "@/types/todo";
+import ArchiveButton from "@/components/ArchiveButton";
+import ArchiveModal from "@/components/ArchiveModal";
+import { Todo, SortType } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
@@ -67,8 +68,8 @@ export default function TodoApp() {
     const [text, setText] = useState("");
     const [todos, setTodos] = useState<Todo[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [filter, setFilter] = useState<FilterType>("ALL");
     const [sortBy, setSortBy] = useState<SortType>("DEFAULT");
+    const [showArchive, setShowArchive] = useState(false);
     const colorScheme = useColorScheme();
     const notificationListener = useRef<Notifications.EventSubscription>();
     const responseListener = useRef<Notifications.EventSubscription>();
@@ -133,7 +134,8 @@ export default function TodoApp() {
     useFocusEffect(
         useCallback(() => {
             loadTodos();
-        }, [loadTodos])
+            loadSortPreference();
+        }, [loadTodos, loadSortPreference])
     );
 
     useEffect(() => {
@@ -187,42 +189,40 @@ export default function TodoApp() {
                 text: text.trim(),
                 completed: false,
                 colorVariant: Math.floor(Math.random() * CARD_COLORS_COUNT),
-                listId: selectedListId, // Assign to current list
+                listId: selectedListId,
             };
             setTodos((prev) => [newTodo, ...prev]);
         }
         setText("");
     }, [text, editingId, selectedListId]);
 
-    const toggleComplete = useCallback(
+    // Archive a task (complete and move to archive)
+    const archiveTodo = useCallback(
         async (id: string) => {
             const todo = todos.find((t) => t.id === id);
             if (!todo) return;
 
-            const isCompletingTask = !todo.completed;
-
-            // If completing a recurring task, create the next occurrence
-            if (isCompletingTask && isRecurrenceActive(todo.recurrence)) {
+            // If this is a recurring task, create the next occurrence
+            if (!todo.completed && isRecurrenceActive(todo.recurrence)) {
                 const nextTodo = createNextRecurringTodo(
                     todo,
                     Math.floor(Math.random() * CARD_COLORS_COUNT)
                 );
 
                 if (nextTodo) {
-                    // Show feedback that next task was created
                     await Haptics.notificationAsync(
                         Haptics.NotificationFeedbackType.Success
                     );
 
                     setTodos((prev) => {
                         const updated = prev.map((t) =>
-                            t.id === id ? { ...t, completed: true } : t
+                            t.id === id
+                                ? { ...t, completed: true, archivedAt: new Date().toISOString() }
+                                : t
                         );
-                        // Add the new recurring task
                         return [nextTodo, ...updated];
                     });
 
-                    // Show a brief notification
                     Alert.alert(
                         "Task Completed! 🎉",
                         `Next "${todo.text}" scheduled for ${new Date(
@@ -238,15 +238,30 @@ export default function TodoApp() {
                 }
             }
 
-            // Normal toggle for non-recurring or tasks that have ended recurrence
+            // Normal archive
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setTodos((prev) =>
                 prev.map((t) =>
-                    t.id === id ? { ...t, completed: !t.completed } : t
+                    t.id === id
+                        ? { ...t, completed: true, archivedAt: new Date().toISOString() }
+                        : t
                 )
             );
         },
         [todos]
     );
+
+    // Restore a task from archive
+    const restoreTodo = useCallback(async (id: string) => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === id
+                    ? { ...t, completed: false, archivedAt: undefined }
+                    : t
+            )
+        );
+    }, []);
 
     const deleteTodo = useCallback(
         async (id: string) => {
@@ -260,6 +275,11 @@ export default function TodoApp() {
         },
         [todos]
     );
+
+    // Clear all archived items
+    const clearAllArchived = useCallback(() => {
+        setTodos((prev) => prev.filter((t) => !t.archivedAt));
+    }, []);
 
     const startEditing = useCallback((todo: Todo) => {
         setText(todo.text);
@@ -381,34 +401,37 @@ export default function TodoApp() {
         );
     }, []);
 
-    // Filter todos by selected list AND filter type
-    const sortedAndFilteredTodos = useMemo(() => {
-        // First filter by list
-        let listFiltered = todos.filter((t) => {
-            // Handle legacy todos without listId - assign to inbox
+    // Helper function to get date priority for sorting
+    const getDatePriority = (todo: Todo): number => {
+        if (!todo.dueDate) return 4; // No due date - lowest priority
+
+        const dueDate = new Date(todo.dueDate);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+
+        const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) return 0; // Overdue - highest priority
+        if (diffDays === 0) return 1; // Today
+        if (diffDays === 1) return 2; // Tomorrow
+        return 3; // Future
+    };
+
+    // Filter and sort todos
+    const { activeTodos, archivedTodos } = useMemo(() => {
+        // Filter by list
+        const listFiltered = todos.filter((t) => {
             const todoListId = t.listId || DEFAULT_LIST_ID;
             return todoListId === selectedListId;
         });
 
-        // Then filter by completion status
-        let filtered: Todo[];
-        switch (filter) {
-            case "TODO":
-                filtered = listFiltered.filter((t) => !t.completed);
-                break;
-            case "DONE":
-                filtered = listFiltered.filter((t) => t.completed);
-                break;
-            default:
-                filtered = [...listFiltered];
-        }
+        // Separate active and archived
+        const active = listFiltered.filter((t) => !t.archivedAt);
+        const archived = listFiltered.filter((t) => t.archivedAt);
 
-        // Sort
-        return filtered.sort((a, b) => {
-            if (a.completed && !b.completed) return 1;
-            if (!a.completed && b.completed) return -1;
-
-            // For items with same completion status, apply user-selected sort
+        // Sort active todos
+        const sortedActive = active.sort((a, b) => {
             switch (sortBy) {
                 case "ALPHA_ASC":
                     return a.text.localeCompare(b.text, undefined, { sensitivity: "base" });
@@ -417,48 +440,53 @@ export default function TodoApp() {
                     return b.text.localeCompare(a.text, undefined, { sensitivity: "base" });
 
                 case "DUE_ASC":
-                    // Items with due dates come first, sorted earliest to latest
                     if (a.dueDate && b.dueDate) {
                         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
                     }
                     if (a.dueDate && !b.dueDate) return -1;
                     if (!a.dueDate && b.dueDate) return 1;
-                    // If neither has due date, sort by creation (newest first)
                     return parseInt(b.id) - parseInt(a.id);
 
                 case "DUE_DESC":
-                    // Items with due dates come first, sorted latest to earliest
                     if (a.dueDate && b.dueDate) {
                         return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
                     }
                     if (a.dueDate && !b.dueDate) return -1;
                     if (!a.dueDate && b.dueDate) return 1;
-                    // If neither has due date, sort by creation (newest first)
                     return parseInt(b.id) - parseInt(a.id);
 
                 case "DEFAULT":
                 default:
-                    // Original behavior: due date priority, then by creation
-                    if (!a.completed && !b.completed) {
-                        if (a.dueDate && b.dueDate) {
-                            const dateA = new Date(a.dueDate).getTime();
-                            const dateB = new Date(b.dueDate).getTime();
-                            return dateA - dateB;
-                        }
-                        if (a.dueDate && !b.dueDate) return -1;
-                        if (!a.dueDate && b.dueDate) return 1;
+                    // Smart sorting: Overdue > Today > Tomorrow > Future > No date
+                    const priorityA = getDatePriority(a);
+                    const priorityB = getDatePriority(b);
+
+                    if (priorityA !== priorityB) {
+                        return priorityA - priorityB;
                     }
+
+                    // Within same priority, sort by actual date
+                    if (a.dueDate && b.dueDate) {
+                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                    }
+
+                    // If no due dates, sort by creation (newest first)
                     return parseInt(b.id) - parseInt(a.id);
             }
         });
-    }, [todos, filter, selectedListId]);
+
+        return {
+            activeTodos: sortedActive,
+            archivedTodos: archived,
+        };
+    }, [todos, selectedListId, sortBy]);
 
     const renderTodoItem = useCallback(
         ({ item, index }: { item: Todo; index: number }) => (
             <TodoItem
                 item={item}
                 index={index}
-                onToggle={toggleComplete}
+                onToggle={archiveTodo}
                 onEdit={startEditing}
                 onDelete={deleteTodo}
                 onSetReminder={handleSetReminder}
@@ -470,7 +498,7 @@ export default function TodoApp() {
             />
         ),
         [
-            toggleComplete,
+            archiveTodo,
             startEditing,
             deleteTodo,
             handleSetReminder,
@@ -483,6 +511,18 @@ export default function TodoApp() {
     );
 
     const keyExtractor = useCallback((item: Todo) => item.id, []);
+
+    const ListFooterComponent = useMemo(() => {
+        if (archivedTodos.length === 0) return null;
+        return (
+            <View className="mt-4">
+                <ArchiveButton
+                    count={archivedTodos.length}
+                    onPress={() => setShowArchive(true)}
+                />
+            </View>
+        );
+    }, [archivedTodos.length]);
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -521,9 +561,6 @@ export default function TodoApp() {
                     {/* Zen Mode Button */}
                     <ZenModeButton />
                 </Animated.View>
-
-                {/* Filter Tabs */}
-                <FilterTabs activeFilter={filter} onFilterChange={setFilter} />
 
                 {/* Sort Selector */}
                 <SortSelector activeSort={sortBy} onSortChange={handleSortChange} />
@@ -566,7 +603,7 @@ export default function TodoApp() {
 
                 {/* List */}
                 <FlatList
-                    data={sortedAndFilteredTodos}
+                    data={activeTodos}
                     extraData={sortBy}
                     keyExtractor={keyExtractor}
                     renderItem={renderTodoItem}
@@ -575,23 +612,30 @@ export default function TodoApp() {
                     }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    ListFooterComponent={ListFooterComponent}
                     ListEmptyComponent={
                         <Animated.View
                             entering={FadeIn.duration(400).delay(200).easing(Easing.out(Easing.quad))}
                             className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-neo-primary rotate-2"
                         >
                             <Text className="text-3xl font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">
-                                {filter === "TODO"
-                                    ? "ALL CLEAR!"
-                                    : "NOTHING YET"}
+                                ALL CLEAR!
                             </Text>
                             <Text className="font-black text-gray-500 dark:text-gray-400 uppercase text-sm mt-2">
-                                {filter === "TODO"
-                                    ? "(Chill time)"
-                                    : "(Add a task!)"}
+                                (Add a task!)
                             </Text>
                         </Animated.View>
                     }
+                />
+
+                {/* Archive Modal */}
+                <ArchiveModal
+                    visible={showArchive}
+                    onClose={() => setShowArchive(false)}
+                    archivedTodos={archivedTodos}
+                    onRestore={restoreTodo}
+                    onDelete={deleteTodo}
+                    onClearAll={clearAllArchived}
                 />
             </View>
         </TouchableWithoutFeedback>

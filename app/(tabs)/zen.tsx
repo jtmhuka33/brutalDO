@@ -33,6 +33,23 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 const STORAGE_KEY = "@neo_brutal_todos_v2";
 const CARD_COLORS_COUNT = 6;
 
+// Helper function to get date priority for sorting
+const getDatePriority = (todo: Todo): number => {
+    if (!todo.dueDate) return 4; // No due date - lowest priority
+
+    const dueDate = new Date(todo.dueDate);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+
+    const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 0; // Overdue - highest priority
+    if (diffDays === 0) return 1; // Today
+    if (diffDays === 1) return 2; // Tomorrow
+    return 3; // Future
+};
+
 export default function ZenMode() {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
@@ -52,11 +69,29 @@ export default function ZenMode() {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const allTodos: Todo[] = JSON.parse(stored);
-                // Only show incomplete tasks from the selected list
-                setTodos(allTodos.filter((t) => {
+                // Only show active (non-archived) tasks from the selected list
+                const activeTodos = allTodos.filter((t) => {
                     const todoListId = t.listId || DEFAULT_LIST_ID;
-                    return !t.completed && todoListId === selectedListId;
-                }));
+                    return !t.archivedAt && todoListId === selectedListId;
+                });
+
+                // Sort by due date priority (smart sort)
+                activeTodos.sort((a, b) => {
+                    const priorityA = getDatePriority(a);
+                    const priorityB = getDatePriority(b);
+
+                    if (priorityA !== priorityB) {
+                        return priorityA - priorityB;
+                    }
+
+                    if (a.dueDate && b.dueDate) {
+                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                    }
+
+                    return parseInt(b.id) - parseInt(a.id);
+                });
+
+                setTodos(activeTodos);
             }
         } catch (e) {
             console.error("Failed to load todos");
@@ -105,9 +140,11 @@ export default function ZenMode() {
                     );
 
                     if (nextTodo) {
-                        // Mark current as completed and add the next occurrence
+                        // Mark current as archived and add the next occurrence
                         updatedTodos = allTodos.map((t) =>
-                            t.id === taskId ? { ...t, completed: true } : t
+                            t.id === taskId
+                                ? { ...t, completed: true, archivedAt: new Date().toISOString() }
+                                : t
                         );
                         updatedTodos = [nextTodo, ...updatedTodos];
 
@@ -126,24 +163,47 @@ export default function ZenMode() {
                             );
                         }, 300);
                     } else {
-                        // Recurrence ended
+                        // Recurrence ended - archive the task
                         updatedTodos = allTodos.map((t) =>
-                            t.id === taskId ? { ...t, completed: true } : t
+                            t.id === taskId
+                                ? { ...t, completed: true, archivedAt: new Date().toISOString() }
+                                : t
                         );
                     }
                 } else {
-                    // Normal non-recurring task
+                    // Normal non-recurring task - archive it
                     updatedTodos = allTodos.map((t) =>
-                        t.id === taskId ? { ...t, completed: true } : t
+                        t.id === taskId
+                            ? { ...t, completed: true, archivedAt: new Date().toISOString() }
+                            : t
                     );
                 }
 
                 await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTodos));
 
-                setTodos(updatedTodos.filter((t) => {
+                // Update local state with active tasks only
+                const activeTodos = updatedTodos.filter((t) => {
                     const todoListId = t.listId || DEFAULT_LIST_ID;
-                    return !t.completed && todoListId === selectedListId;
-                }));
+                    return !t.archivedAt && todoListId === selectedListId;
+                });
+
+                // Sort by due date priority
+                activeTodos.sort((a, b) => {
+                    const priorityA = getDatePriority(a);
+                    const priorityB = getDatePriority(b);
+
+                    if (priorityA !== priorityB) {
+                        return priorityA - priorityB;
+                    }
+
+                    if (a.dueDate && b.dueDate) {
+                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                    }
+
+                    return parseInt(b.id) - parseInt(a.id);
+                });
+
+                setTodos(activeTodos);
             }
         } catch (e) {
             console.error("Failed to complete todo");
@@ -182,6 +242,28 @@ export default function ZenMode() {
                 return "CUSTOM";
             default:
                 return null;
+        }
+    };
+
+    // Helper to format due date badge
+    const getDueDateLabel = (todo: Todo): { label: string; isUrgent: boolean } | null => {
+        if (!todo.dueDate) return null;
+
+        const priority = getDatePriority(todo);
+
+        switch (priority) {
+            case 0:
+                return { label: "OVERDUE", isUrgent: true };
+            case 1:
+                return { label: "TODAY", isUrgent: true };
+            case 2:
+                return { label: "TOMORROW", isUrgent: false };
+            default:
+                const date = new Date(todo.dueDate);
+                return {
+                    label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase(),
+                    isUrgent: false
+                };
         }
     };
 
@@ -274,6 +356,7 @@ export default function ZenMode() {
                             <View className="gap-4">
                                 {todos.map((todo, index) => {
                                     const recurrenceLabel = getRecurrenceLabel(todo);
+                                    const dueDateInfo = getDueDateLabel(todo);
 
                                     return (
                                         <Pressable
@@ -316,30 +399,72 @@ export default function ZenMode() {
                                                     >
                                                         {todo.text}
                                                     </Text>
-                                                    {/* Recurrence indicator */}
-                                                    {recurrenceLabel && (
-                                                        <View className="flex-row items-center gap-1 mt-1">
-                                                            <Ionicons
-                                                                name="repeat-sharp"
-                                                                size={12}
-                                                                color={
-                                                                    selectedTodo?.id === todo.id
-                                                                        ? "white"
-                                                                        : "#B000FF"
-                                                                }
-                                                            />
-                                                            <Text
+
+                                                    {/* Badges Row */}
+                                                    <View className="flex-row flex-wrap items-center gap-2 mt-1">
+                                                        {/* Due Date Badge */}
+                                                        {dueDateInfo && (
+                                                            <View
                                                                 className={cn(
-                                                                    "text-xs font-black uppercase",
+                                                                    "flex-row items-center gap-1 px-2 py-0.5 border-2",
                                                                     selectedTodo?.id === todo.id
-                                                                        ? "text-white/80"
-                                                                        : "text-neo-purple"
+                                                                        ? "border-white/50"
+                                                                        : dueDateInfo.isUrgent
+                                                                            ? "border-neo-primary bg-neo-primary/10"
+                                                                            : "border-gray-400"
                                                                 )}
                                                             >
-                                                                {recurrenceLabel}
-                                                            </Text>
-                                                        </View>
-                                                    )}
+                                                                <Ionicons
+                                                                    name="calendar-sharp"
+                                                                    size={10}
+                                                                    color={
+                                                                        selectedTodo?.id === todo.id
+                                                                            ? "white"
+                                                                            : dueDateInfo.isUrgent
+                                                                                ? "#FF0055"
+                                                                                : "#666"
+                                                                    }
+                                                                />
+                                                                <Text
+                                                                    className={cn(
+                                                                        "text-xs font-black uppercase",
+                                                                        selectedTodo?.id === todo.id
+                                                                            ? "text-white/80"
+                                                                            : dueDateInfo.isUrgent
+                                                                                ? "text-neo-primary"
+                                                                                : "text-gray-500"
+                                                                    )}
+                                                                >
+                                                                    {dueDateInfo.label}
+                                                                </Text>
+                                                            </View>
+                                                        )}
+
+                                                        {/* Recurrence indicator */}
+                                                        {recurrenceLabel && (
+                                                            <View className="flex-row items-center gap-1">
+                                                                <Ionicons
+                                                                    name="repeat-sharp"
+                                                                    size={12}
+                                                                    color={
+                                                                        selectedTodo?.id === todo.id
+                                                                            ? "white"
+                                                                            : "#B000FF"
+                                                                    }
+                                                                />
+                                                                <Text
+                                                                    className={cn(
+                                                                        "text-xs font-black uppercase",
+                                                                        selectedTodo?.id === todo.id
+                                                                            ? "text-white/80"
+                                                                            : "text-neo-purple"
+                                                                    )}
+                                                                >
+                                                                    {recurrenceLabel}
+                                                                </Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
                                                 </View>
                                             </View>
                                         </Pressable>

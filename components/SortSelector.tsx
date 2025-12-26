@@ -20,12 +20,20 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 }
 
 const SORT_OPTIONS: SortOption[] = [
-    { value: "DEFAULT", label: "NEWEST", icon: "time-sharp" },
-    { value: "ALPHA_ASC", label: "A → Z", icon: "text-sharp" },
-    { value: "ALPHA_DESC", label: "Z → A", icon: "text-sharp" },
+    { value: "DEFAULT", label: "SMART", icon: "sparkles-sharp" },
     { value: "DUE_ASC", label: "DUE ↑", icon: "calendar-sharp" },
     { value: "DUE_DESC", label: "DUE ↓", icon: "calendar-sharp" },
+    { value: "ALPHA_ASC", label: "A → Z", icon: "text-sharp" },
+    { value: "ALPHA_DESC", label: "Z → A", icon: "text-sharp" },
 ];
+
+const SORT_DESCRIPTIONS: Record<SortType, string> = {
+    DEFAULT: "Overdue → Today → Tomorrow → Future",
+    DUE_ASC: "Earliest due date first",
+    DUE_DESC: "Latest due date first",
+    ALPHA_ASC: "Alphabetical A to Z",
+    ALPHA_DESC: "Alphabetical Z to A",
+};
 
 interface SortSelectorProps {
     activeSort: SortType;
@@ -95,9 +103,14 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
                             color="black"
                         />
                     </View>
-                    <Text className="text-base font-black uppercase tracking-tight text-black dark:text-white">
-                        Sort: {activeOption.label}
-                    </Text>
+                    <View>
+                        <Text className="text-base font-black uppercase tracking-tight text-black dark:text-white">
+                            Sort: {activeOption.label}
+                        </Text>
+                        <Text className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            {SORT_DESCRIPTIONS[activeSort]}
+                        </Text>
+                    </View>
                 </View>
                 <Ionicons
                     name={isExpanded ? "chevron-up-sharp" : "chevron-down-sharp"}
@@ -140,14 +153,24 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
                                         color={isActive ? "#FF0055" : "black"}
                                     />
                                 </View>
-                                <Text
-                                    className={cn(
-                                        "flex-1 text-base font-black uppercase tracking-tight",
-                                        isActive ? "text-white" : "text-black dark:text-white"
-                                    )}
-                                >
-                                    {option.label}
-                                </Text>
+                                <View className="flex-1">
+                                    <Text
+                                        className={cn(
+                                            "text-base font-black uppercase tracking-tight",
+                                            isActive ? "text-white" : "text-black dark:text-white"
+                                        )}
+                                    >
+                                        {option.label}
+                                    </Text>
+                                    <Text
+                                        className={cn(
+                                            "text-xs font-black uppercase tracking-wider",
+                                            isActive ? "text-white/70" : "text-gray-500 dark:text-gray-400"
+                                        )}
+                                    >
+                                        {SORT_DESCRIPTIONS[option.value]}
+                                    </Text>
+                                </View>
                                 {isActive && (
                                     <View className="h-6 w-6 items-center justify-center border-3 border-black bg-white dark:border-neo-primary">
                                         <Ionicons name="checkmark-sharp" size={14} color="#FF0055" />
