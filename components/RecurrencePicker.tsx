@@ -32,7 +32,7 @@ import {
     RECURRENCE_OPTIONS,
     RECURRENCE_UNIT_OPTIONS,
 } from "@/types/recurrence";
-import { formatRecurrencePattern, getRecurrenceShortLabel } from "@/utils/recurrence";
+import { formatRecurrencePattern } from "@/utils/recurrence";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -62,6 +62,7 @@ export default function RecurrencePicker({
     const [customUnit, setCustomUnit] = useState<RecurrenceUnit>("days");
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
     const [endDate, setEndDate] = useState<Date | null>(null);
+    const [pendingEndDateAction, setPendingEndDateAction] = useState(false);
     const colorScheme = useColorScheme();
 
     const scale = useSharedValue(1);
@@ -146,9 +147,38 @@ export default function RecurrencePicker({
         closeModal();
     }, [customInterval, customUnit, endDate, onSetRecurrence, closeModal]);
 
+    // Close modal first, then open date picker
+    const handleOpenEndDatePicker = useCallback(() => {
+        setPendingEndDateAction(true);
+        setShowModal(false);
+    }, []);
+
+    // Handle modal close and open date picker if pending
+    const handleModalHide = useCallback(() => {
+        if (pendingEndDateAction) {
+            setPendingEndDateAction(false);
+            // Small delay to ensure modal is fully closed on iOS
+            setTimeout(() => {
+                setShowEndDatePicker(true);
+            }, 100);
+        }
+    }, [pendingEndDateAction]);
+
     const handleEndDateConfirm = useCallback((date: Date) => {
         setEndDate(date);
         setShowEndDatePicker(false);
+        // Reopen the modal after date is selected
+        setTimeout(() => {
+            setShowModal(true);
+        }, 100);
+    }, []);
+
+    const handleEndDateCancel = useCallback(() => {
+        setShowEndDatePicker(false);
+        // Reopen the modal after cancel
+        setTimeout(() => {
+            setShowModal(true);
+        }, 100);
     }, []);
 
     const clearEndDate = useCallback(() => {
@@ -230,6 +260,7 @@ export default function RecurrencePicker({
                 transparent
                 animationType="none"
                 onRequestClose={closeModal}
+                onDismiss={handleModalHide}
             >
                 <Pressable
                     onPress={closeModal}
@@ -261,61 +292,96 @@ export default function RecurrencePicker({
                                 <ScrollView
                                     className="max-h-96"
                                     contentContainerStyle={{ padding: 16 }}
+                                    keyboardShouldPersistTaps="handled"
                                 >
                                     {showCustom ? (
                                         // Custom Recurrence Form
-                                        <View className="gap-4">
+                                        <View className="gap-6">
                                             {/* Interval Input */}
                                             <View>
-                                                <Text className="mb-2 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                                                <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
                                                     Every
                                                 </Text>
-                                                <View className="flex-row gap-4">
+                                                <View className="gap-4">
+                                                    {/* Number Input */}
                                                     <TextInput
                                                         value={customInterval}
                                                         onChangeText={setCustomInterval}
                                                         keyboardType="number-pad"
-                                                        className="w-24 border-5 border-black bg-white p-4 text-center text-2xl font-black text-black dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white"
+                                                        className="border-5 border-black bg-white p-4 text-center text-2xl font-black text-black dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white"
+                                                        placeholder="1"
+                                                        placeholderTextColor={colorScheme === "dark" ? "#666" : "#999"}
                                                     />
-                                                    <View className="flex-1 flex-row flex-wrap gap-2">
-                                                        {RECURRENCE_UNIT_OPTIONS.map((option) => (
-                                                            <Pressable
-                                                                key={option.unit}
-                                                                onPress={() => setCustomUnit(option.unit)}
-                                                                className={cn(
-                                                                    "flex-1 min-w-[70px] items-center justify-center border-4 border-black p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
-                                                                    customUnit === option.unit
-                                                                        ? "bg-neo-purple"
-                                                                        : "bg-white dark:bg-neo-dark-surface"
-                                                                )}
-                                                            >
-                                                                <Text
+
+                                                    {/* Unit Selection - 2x2 Grid */}
+                                                    <View className="gap-3">
+                                                        <View className="flex-row gap-3">
+                                                            {RECURRENCE_UNIT_OPTIONS.slice(0, 2).map((option) => (
+                                                                <Pressable
+                                                                    key={option.unit}
+                                                                    onPress={() => setCustomUnit(option.unit)}
                                                                     className={cn(
-                                                                        "text-xs font-black uppercase",
+                                                                        "flex-1 items-center justify-center border-4 border-black p-4 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
                                                                         customUnit === option.unit
-                                                                            ? "text-white"
-                                                                            : "text-black dark:text-white"
+                                                                            ? "bg-neo-purple"
+                                                                            : "bg-white dark:bg-neo-dark-surface"
                                                                     )}
                                                                 >
-                                                                    {parseInt(customInterval, 10) === 1
-                                                                        ? option.singularLabel
-                                                                        : option.label}
-                                                                </Text>
-                                                            </Pressable>
-                                                        ))}
+                                                                    <Text
+                                                                        className={cn(
+                                                                            "text-sm font-black uppercase",
+                                                                            customUnit === option.unit
+                                                                                ? "text-white"
+                                                                                : "text-black dark:text-white"
+                                                                        )}
+                                                                    >
+                                                                        {parseInt(customInterval, 10) === 1
+                                                                            ? option.singularLabel
+                                                                            : option.label}
+                                                                    </Text>
+                                                                </Pressable>
+                                                            ))}
+                                                        </View>
+                                                        <View className="flex-row gap-3">
+                                                            {RECURRENCE_UNIT_OPTIONS.slice(2, 4).map((option) => (
+                                                                <Pressable
+                                                                    key={option.unit}
+                                                                    onPress={() => setCustomUnit(option.unit)}
+                                                                    className={cn(
+                                                                        "flex-1 items-center justify-center border-4 border-black p-4 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
+                                                                        customUnit === option.unit
+                                                                            ? "bg-neo-purple"
+                                                                            : "bg-white dark:bg-neo-dark-surface"
+                                                                    )}
+                                                                >
+                                                                    <Text
+                                                                        className={cn(
+                                                                            "text-sm font-black uppercase",
+                                                                            customUnit === option.unit
+                                                                                ? "text-white"
+                                                                                : "text-black dark:text-white"
+                                                                        )}
+                                                                    >
+                                                                        {parseInt(customInterval, 10) === 1
+                                                                            ? option.singularLabel
+                                                                            : option.label}
+                                                                    </Text>
+                                                                </Pressable>
+                                                            ))}
+                                                        </View>
                                                     </View>
                                                 </View>
                                             </View>
 
                                             {/* End Date */}
                                             <View>
-                                                <Text className="mb-2 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                                                <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
                                                     End Date (Optional)
                                                 </Text>
                                                 {endDate ? (
                                                     <View className="flex-row items-center gap-3">
                                                         <Pressable
-                                                            onPress={() => setShowEndDatePicker(true)}
+                                                            onPress={handleOpenEndDatePicker}
                                                             className="flex-1 flex-row items-center gap-3 border-5 border-black bg-neo-orange p-4 dark:border-neo-primary"
                                                         >
                                                             <Ionicons name="calendar-sharp" size={20} color="white" />
@@ -336,7 +402,7 @@ export default function RecurrencePicker({
                                                     </View>
                                                 ) : (
                                                     <Pressable
-                                                        onPress={() => setShowEndDatePicker(true)}
+                                                        onPress={handleOpenEndDatePicker}
                                                         className="flex-row items-center justify-center gap-3 border-5 border-dashed border-gray-400 bg-transparent p-4 dark:border-neo-primary"
                                                     >
                                                         <Ionicons
@@ -416,13 +482,13 @@ export default function RecurrencePicker({
 
                                             {/* End Date Option (when not custom) */}
                                             <View className="mt-4 border-t-4 border-dashed border-gray-300 pt-4 dark:border-gray-600">
-                                                <Text className="mb-2 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                                                <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
                                                     End Date (Optional)
                                                 </Text>
                                                 {endDate ? (
                                                     <View className="flex-row items-center gap-3">
                                                         <Pressable
-                                                            onPress={() => setShowEndDatePicker(true)}
+                                                            onPress={handleOpenEndDatePicker}
                                                             className="flex-1 flex-row items-center gap-3 border-5 border-black bg-neo-orange p-4 dark:border-neo-primary"
                                                         >
                                                             <Ionicons name="calendar-sharp" size={20} color="white" />
@@ -443,7 +509,7 @@ export default function RecurrencePicker({
                                                     </View>
                                                 ) : (
                                                     <Pressable
-                                                        onPress={() => setShowEndDatePicker(true)}
+                                                        onPress={handleOpenEndDatePicker}
                                                         className="flex-row items-center justify-center gap-3 border-5 border-dashed border-gray-400 bg-transparent p-4 dark:border-neo-primary"
                                                     >
                                                         <Ionicons
@@ -469,12 +535,12 @@ export default function RecurrencePicker({
                 </Pressable>
             </Modal>
 
-            {/* End Date Picker */}
+            {/* End Date Picker - MOVED OUTSIDE THE MODAL */}
             <DateTimePickerModal
                 isVisible={showEndDatePicker}
                 mode="date"
                 onConfirm={handleEndDateConfirm}
-                onCancel={() => setShowEndDatePicker(false)}
+                onCancel={handleEndDateCancel}
                 minimumDate={new Date()}
                 isDarkModeEnabled={colorScheme === "dark"}
             />
