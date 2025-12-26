@@ -8,6 +8,7 @@ import {
     TextInput,
     ScrollView,
     useColorScheme,
+    Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
@@ -15,7 +16,6 @@ import Animated, {
     useAnimatedStyle,
     withTiming,
     FadeIn,
-    FadeOut,
     SlideInDown,
     SlideOutDown,
     Easing,
@@ -62,7 +62,6 @@ export default function RecurrencePicker({
     const [customUnit, setCustomUnit] = useState<RecurrenceUnit>("days");
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
     const [endDate, setEndDate] = useState<Date | null>(null);
-    const [pendingEndDateAction, setPendingEndDateAction] = useState(false);
     const colorScheme = useColorScheme();
 
     const scale = useSharedValue(1);
@@ -90,6 +89,8 @@ export default function RecurrencePicker({
             setShowCustom(true);
         } else {
             setShowCustom(false);
+            setCustomInterval("1");
+            setCustomUnit("days");
         }
         if (recurrence?.endDate) {
             setEndDate(new Date(recurrence.endDate));
@@ -102,6 +103,7 @@ export default function RecurrencePicker({
     const closeModal = useCallback(() => {
         setShowModal(false);
         setShowCustom(false);
+        setShowEndDatePicker(false);
     }, []);
 
     const handleSelectType = useCallback(
@@ -147,41 +149,22 @@ export default function RecurrencePicker({
         closeModal();
     }, [customInterval, customUnit, endDate, onSetRecurrence, closeModal]);
 
-    // Close modal first, then open date picker
-    const handleOpenEndDatePicker = useCallback(() => {
-        setPendingEndDateAction(true);
-        setShowModal(false);
+    const handleOpenEndDatePicker = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setShowEndDatePicker(true);
     }, []);
-
-    // Handle modal close and open date picker if pending
-    const handleModalHide = useCallback(() => {
-        if (pendingEndDateAction) {
-            setPendingEndDateAction(false);
-            // Small delay to ensure modal is fully closed on iOS
-            setTimeout(() => {
-                setShowEndDatePicker(true);
-            }, 100);
-        }
-    }, [pendingEndDateAction]);
 
     const handleEndDateConfirm = useCallback((date: Date) => {
         setEndDate(date);
         setShowEndDatePicker(false);
-        // Reopen the modal after date is selected
-        setTimeout(() => {
-            setShowModal(true);
-        }, 100);
     }, []);
 
     const handleEndDateCancel = useCallback(() => {
         setShowEndDatePicker(false);
-        // Reopen the modal after cancel
-        setTimeout(() => {
-            setShowModal(true);
-        }, 100);
     }, []);
 
-    const clearEndDate = useCallback(() => {
+    const clearEndDate = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setEndDate(null);
     }, []);
 
@@ -260,7 +243,6 @@ export default function RecurrencePicker({
                 transparent
                 animationType="none"
                 onRequestClose={closeModal}
-                onDismiss={handleModalHide}
             >
                 <Pressable
                     onPress={closeModal}
@@ -533,17 +515,17 @@ export default function RecurrencePicker({
                         </Pressable>
                     </Animated.View>
                 </Pressable>
-            </Modal>
 
-            {/* End Date Picker - MOVED OUTSIDE THE MODAL */}
-            <DateTimePickerModal
-                isVisible={showEndDatePicker}
-                mode="date"
-                onConfirm={handleEndDateConfirm}
-                onCancel={handleEndDateCancel}
-                minimumDate={new Date()}
-                isDarkModeEnabled={colorScheme === "dark"}
-            />
+                {/* End Date Picker - Inside Modal but rendered on top */}
+                <DateTimePickerModal
+                    isVisible={showEndDatePicker}
+                    mode="date"
+                    onConfirm={handleEndDateConfirm}
+                    onCancel={handleEndDateCancel}
+                    minimumDate={new Date()}
+                    isDarkModeEnabled={colorScheme === "dark"}
+                />
+            </Modal>
         </View>
     );
 }
