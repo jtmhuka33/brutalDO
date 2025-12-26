@@ -1,3 +1,4 @@
+// app/(tabs)/index.tsx
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import ZenModeButton from "@/components/ZenModeButton";
 import {
@@ -17,10 +18,9 @@ import {
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
-    withSequence,
+    withTiming,
     FadeIn,
-    BounceIn,
+    Easing,
 } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
@@ -54,6 +54,11 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 const STORAGE_KEY = "@neo_brutal_todos_v2";
 const SORT_STORAGE_KEY = "@neo_brutal_sort_v1";
 const CARD_COLORS_COUNT = 6;
+
+const TIMING_CONFIG = {
+    duration: 150,
+    easing: Easing.out(Easing.quad),
+};
 
 const AnimatedTouchableOpacity =
     Animated.createAnimatedComponent(TouchableOpacity);
@@ -154,10 +159,9 @@ export default function TodoApp() {
 
     const handleOpenDrawer = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        menuScale.value = withSequence(
-            withSpring(0.85, { damping: 10, stiffness: 400 }),
-            withSpring(1, { damping: 8, stiffness: 350 })
-        );
+        menuScale.value = withTiming(0.9, TIMING_CONFIG, () => {
+            menuScale.value = withTiming(1, TIMING_CONFIG);
+        });
         navigation.dispatch(DrawerActions.openDrawer());
     }, [navigation]);
 
@@ -166,10 +170,9 @@ export default function TodoApp() {
 
         Keyboard.dismiss();
 
-        buttonScale.value = withSequence(
-            withSpring(0.85, { damping: 10, stiffness: 400 }),
-            withSpring(1, { damping: 8, stiffness: 350 })
-        );
+        buttonScale.value = withTiming(0.9, TIMING_CONFIG, () => {
+            buttonScale.value = withTiming(1, TIMING_CONFIG);
+        });
 
         if (editingId) {
             setTodos((prev) =>
@@ -488,7 +491,7 @@ export default function TodoApp() {
 
                 {/* Header with Menu Button */}
                 <Animated.View
-                    entering={FadeIn.duration(400).springify()}
+                    entering={FadeIn.duration(300).easing(Easing.out(Easing.quad))}
                     className="mb-6 flex flex-row items-center justify-between"
                 >
                     {/* Menu Button */}
@@ -574,9 +577,7 @@ export default function TodoApp() {
                     keyboardShouldPersistTaps="handled"
                     ListEmptyComponent={
                         <Animated.View
-                            entering={BounceIn.duration(500)
-                                .springify()
-                                .damping(12)}
+                            entering={FadeIn.duration(400).delay(200).easing(Easing.out(Easing.quad))}
                             className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-neo-primary rotate-2"
                         >
                             <Text className="text-3xl font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">

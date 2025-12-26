@@ -1,3 +1,4 @@
+// components/ReminderPicker.tsx
 import React, { useState, useCallback } from "react";
 import { View, Text, Pressable, useColorScheme } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -7,7 +8,8 @@ import { clsx } from "clsx";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
+    withTiming,
+    Easing,
 } from "react-native-reanimated";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -21,6 +23,11 @@ interface ReminderPickerProps {
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const TIMING_CONFIG = {
+    duration: 150,
+    easing: Easing.out(Easing.quad),
+};
 
 export default function ReminderPicker({
                                            reminderDate,
@@ -37,18 +44,12 @@ export default function ReminderPicker({
 
     const handlePressIn = useCallback(() => {
         'worklet';
-        scale.value = withSpring(0.92, {
-            damping: 12,
-            stiffness: 400,
-        });
+        scale.value = withTiming(0.96, TIMING_CONFIG);
     }, []);
 
     const handlePressOut = useCallback(() => {
         'worklet';
-        scale.value = withSpring(1, {
-            damping: 10,
-            stiffness: 350,
-        });
+        scale.value = withTiming(1, TIMING_CONFIG);
     }, []);
 
     const showDatePicker = useCallback(() => {

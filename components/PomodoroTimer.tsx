@@ -1,9 +1,9 @@
+// components/PomodoroTimer.tsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, Pressable, AppState, Alert, ScrollView } from "react-native";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
     withTiming,
     Easing,
 } from "react-native-reanimated";
@@ -31,6 +31,11 @@ const LONG_BREAK = 15 * 60; // 15 minutes
 type TimerState = "work" | "shortBreak" | "longBreak";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const TIMING_CONFIG = {
+    duration: 150,
+    easing: Easing.out(Easing.quad),
+};
 
 export default function PomodoroTimer({
                                           selectedTask,
@@ -256,34 +261,22 @@ export default function PomodoroTimer({
 
     const handleMainButtonPressIn = useCallback(() => {
         'worklet';
-        scale.value = withSpring(0.92, {
-            damping: 12,
-            stiffness: 400,
-        });
+        scale.value = withTiming(0.95, TIMING_CONFIG);
     }, []);
 
     const handleMainButtonPressOut = useCallback(() => {
         'worklet';
-        scale.value = withSpring(1, {
-            damping: 10,
-            stiffness: 350,
-        });
+        scale.value = withTiming(1, TIMING_CONFIG);
     }, []);
 
     const handleCompleteButtonPressIn = useCallback(() => {
         'worklet';
-        completeButtonScale.value = withSpring(0.92, {
-            damping: 12,
-            stiffness: 400,
-        });
+        completeButtonScale.value = withTiming(0.95, TIMING_CONFIG);
     }, []);
 
     const handleCompleteButtonPressOut = useCallback(() => {
         'worklet';
-        completeButtonScale.value = withSpring(1, {
-            damping: 10,
-            stiffness: 350,
-        });
+        completeButtonScale.value = withTiming(1, TIMING_CONFIG);
     }, []);
 
     const formatTime = (seconds: number): string => {

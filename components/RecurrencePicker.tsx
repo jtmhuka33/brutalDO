@@ -1,3 +1,4 @@
+// components/RecurrencePicker.tsx
 import React, { useState, useCallback } from "react";
 import {
     View,
@@ -12,11 +13,12 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
+    withTiming,
     FadeIn,
     FadeOut,
     SlideInDown,
     SlideOutDown,
+    Easing,
 } from "react-native-reanimated";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { twMerge } from "tailwind-merge";
@@ -44,6 +46,11 @@ interface RecurrencePickerProps {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+const TIMING_CONFIG = {
+    duration: 150,
+    easing: Easing.out(Easing.quad),
+};
+
 export default function RecurrencePicker({
                                              recurrence,
                                              onSetRecurrence,
@@ -65,18 +72,12 @@ export default function RecurrencePicker({
 
     const handlePressIn = useCallback(() => {
         "worklet";
-        scale.value = withSpring(0.92, {
-            damping: 12,
-            stiffness: 400,
-        });
+        scale.value = withTiming(0.96, TIMING_CONFIG);
     }, []);
 
     const handlePressOut = useCallback(() => {
         "worklet";
-        scale.value = withSpring(1, {
-            damping: 10,
-            stiffness: 350,
-        });
+        scale.value = withTiming(1, TIMING_CONFIG);
     }, []);
 
     const openModal = useCallback(async () => {
@@ -165,7 +166,7 @@ export default function RecurrencePicker({
             {/* Current Recurrence Display */}
             {hasRecurrence && (
                 <Animated.View
-                    entering={FadeIn.duration(200)}
+                    entering={FadeIn.duration(200).easing(Easing.out(Easing.quad))}
                     className="flex-row items-center justify-between border-5 border-black bg-neo-purple p-4 shadow-brutal-sm dark:border-neo-primary dark:shadow-brutal-dark-sm"
                 >
                     <View className="flex-row items-center gap-3 flex-1">
@@ -235,8 +236,8 @@ export default function RecurrencePicker({
                     className="flex-1 bg-black/60 justify-end"
                 >
                     <Animated.View
-                        entering={SlideInDown.springify().damping(15)}
-                        exiting={SlideOutDown.springify().damping(15)}
+                        entering={SlideInDown.duration(250).easing(Easing.out(Easing.quad))}
+                        exiting={SlideOutDown.duration(200).easing(Easing.in(Easing.quad))}
                     >
                         <Pressable onPress={() => {}}>
                             <View className="bg-neo-bg dark:bg-neo-dark border-t-5 border-black dark:border-neo-primary">

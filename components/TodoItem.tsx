@@ -1,13 +1,14 @@
+// components/TodoItem.tsx
 import React, { useCallback, useState } from "react";
 import { View, Text, TouchableOpacity, Pressable, useColorScheme } from "react-native";
 import Animated, {
     FadeInDown,
+    FadeOut,
     Layout,
-    SlideOutRight,
-    withSpring,
-    withSequence,
     useAnimatedStyle,
     useSharedValue,
+    withTiming,
+    Easing,
     runOnJS,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,6 +32,16 @@ const CARD_COLORS = [
     "bg-neo-green dark:bg-neo-green", // Matrix Green
     "bg-neo-orange dark:bg-neo-orange", // Vivid Orange
 ];
+
+const TIMING_CONFIG = {
+    duration: 200,
+    easing: Easing.out(Easing.quad),
+};
+
+const TIMING_CONFIG_FAST = {
+    duration: 150,
+    easing: Easing.out(Easing.quad),
+};
 
 interface TodoItemProps {
     item: Todo;
@@ -63,12 +74,12 @@ export default function TodoItem({
     const colorClass = CARD_COLORS[item.colorVariant ?? index % CARD_COLORS.length];
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Animation for press feedback - bouncy and quick
     const scale = useSharedValue(1);
-    const rotation = useSharedValue(0);
+    const opacity = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }, { rotate: `${rotation.value}deg` }],
+        transform: [{ scale: scale.value }],
+        opacity: opacity.value,
     }));
 
     const handleToggle = useCallback(() => {
@@ -76,42 +87,22 @@ export default function TodoItem({
     }, [onToggle, item.id]);
 
     const handlePress = useCallback(() => {
-        // Quick, snappy bounce using withSequence instead of setTimeout
-        scale.value = withSequence(
-            withSpring(0.95, {
-                damping: 15,
-                stiffness: 400,
-            }),
-            withSpring(1, {
-                damping: 12,
-                stiffness: 350,
-            })
-        );
+        scale.value = withTiming(0.98, TIMING_CONFIG_FAST, () => {
+            scale.value = withTiming(1, TIMING_CONFIG_FAST);
+        });
 
         runOnJS(handleToggle)();
     }, [handleToggle]);
 
     const handleEditPress = useCallback(() => {
-        rotation.value = withSequence(
-            withSpring(-5, {
-                damping: 10,
-                stiffness: 300,
-            }),
-            withSpring(0, {
-                damping: 10,
-                stiffness: 300,
-            })
-        );
-        // Delay the edit callback slightly
+        opacity.value = withTiming(0.7, TIMING_CONFIG_FAST, () => {
+            opacity.value = withTiming(1, TIMING_CONFIG_FAST);
+        });
         runOnJS(onEdit)(item);
     }, [onEdit, item]);
 
     const handleDeletePress = useCallback(() => {
-        rotation.value = withSpring(5, {
-            damping: 10,
-            stiffness: 300,
-        });
-        // Use withDelay pattern for the delete
+        opacity.value = withTiming(0.7, TIMING_CONFIG_FAST);
         runOnJS(onDelete)(item.id);
     }, [onDelete, item.id]);
 
@@ -178,7 +169,6 @@ export default function TodoItem({
     const isDueDateOverdue = (dateString: string) => {
         const date = new Date(dateString);
         const now = new Date();
-        // Set date to end of day for comparison
         date.setHours(23, 59, 59, 999);
         return date < now;
     };
@@ -193,16 +183,9 @@ export default function TodoItem({
 
     return (
         <Animated.View
-            entering={FadeInDown.delay(index * 30)
-                .duration(350)
-                .springify()
-                .damping(14)
-                .stiffness(350)}
-            exiting={SlideOutRight.duration(300)
-                .springify()
-                .damping(15)
-                .stiffness(400)}
-            layout={Layout.springify().damping(16).stiffness(380)}
+            entering={FadeInDown.delay(index * 30).duration(250).easing(Easing.out(Easing.quad))}
+            exiting={FadeOut.duration(200).easing(Easing.in(Easing.quad))}
+            layout={Layout.duration(250).easing(Easing.inOut(Easing.quad))}
             style={animatedStyle}
             className={cn(
                 "mb-6 border-5 p-5 shadow-brutal",
@@ -210,7 +193,6 @@ export default function TodoItem({
                     ? "bg-gray-300 dark:bg-neo-dark-surface border-black dark:border-gray-600"
                     : `${colorClass} border-black dark:border-neo-primary`,
                 "dark:shadow-brutal-dark",
-                // Add slight rotation for asymmetry
                 index % 3 === 0 && "-rotate-1",
                 index % 3 === 1 && "rotate-1"
             )}

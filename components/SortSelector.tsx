@@ -1,11 +1,13 @@
+// components/SortSelector.tsx
 import React, { useState, useCallback } from "react";
 import { View, Text, Pressable, useColorScheme } from "react-native";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
+    withTiming,
     FadeIn,
     FadeOut,
+    Easing,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { twMerge } from "tailwind-merge";
@@ -32,6 +34,11 @@ interface SortSelectorProps {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+const TIMING_CONFIG = {
+    duration: 150,
+    easing: Easing.out(Easing.quad),
+};
+
 export default function SortSelector({ activeSort, onSortChange }: SortSelectorProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const colorScheme = useColorScheme();
@@ -43,18 +50,12 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
 
     const handlePressIn = useCallback(() => {
         "worklet";
-        scale.value = withSpring(0.92, {
-            damping: 12,
-            stiffness: 400,
-        });
+        scale.value = withTiming(0.96, TIMING_CONFIG);
     }, []);
 
     const handlePressOut = useCallback(() => {
         "worklet";
-        scale.value = withSpring(1, {
-            damping: 10,
-            stiffness: 350,
-        });
+        scale.value = withTiming(1, TIMING_CONFIG);
     }, []);
 
     const toggleExpanded = useCallback(async () => {
@@ -108,8 +109,8 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
             {/* Sort Options Dropdown */}
             {isExpanded && (
                 <Animated.View
-                    entering={FadeIn.duration(200)}
-                    exiting={FadeOut.duration(150)}
+                    entering={FadeIn.duration(200).easing(Easing.out(Easing.quad))}
+                    exiting={FadeOut.duration(150).easing(Easing.in(Easing.quad))}
                     className="mt-3 gap-2"
                 >
                     {SORT_OPTIONS.map((option, index) => {

@@ -1,9 +1,11 @@
+// components/FilterTabs.tsx
 import React, { useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
+    withTiming,
+    Easing,
 } from "react-native-reanimated";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
@@ -21,6 +23,11 @@ interface FilterTabsProps {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+const TIMING_CONFIG = {
+    duration: 150,
+    easing: Easing.out(Easing.quad),
+};
+
 function FilterTab({
                        label,
                        value,
@@ -35,56 +42,24 @@ function FilterTab({
     rotationClass: string;
 }) {
     const scale = useSharedValue(1);
-    const translateX = useSharedValue(0);
-    const translateY = useSharedValue(0);
+    const opacity = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
-        transform: [
-            { scale: scale.value },
-            { translateX: translateX.value },
-            { translateY: translateY.value },
-        ],
+        transform: [{ scale: scale.value }],
+        opacity: opacity.value,
     }));
 
     const handlePressIn = useCallback(() => {
         'worklet';
-        // Quick bounce down
-        scale.value = withSpring(0.92, {
-            damping: 12,
-            stiffness: 400,
-        });
-
-        if (!isActive) {
-            translateX.value = withSpring(2, {
-                damping: 15,
-                stiffness: 400,
-            });
-            translateY.value = withSpring(2, {
-                damping: 15,
-                stiffness: 400,
-            });
-        }
-    }, [isActive]);
+        scale.value = withTiming(0.96, TIMING_CONFIG);
+        opacity.value = withTiming(0.8, TIMING_CONFIG);
+    }, []);
 
     const handlePressOut = useCallback(() => {
         'worklet';
-        // Bounce back
-        scale.value = withSpring(1, {
-            damping: 10,
-            stiffness: 350,
-        });
-
-        if (!isActive) {
-            translateX.value = withSpring(0, {
-                damping: 10,
-                stiffness: 350,
-            });
-            translateY.value = withSpring(0, {
-                damping: 10,
-                stiffness: 350,
-            });
-        }
-    }, [isActive]);
+        scale.value = withTiming(1, TIMING_CONFIG);
+        opacity.value = withTiming(1, TIMING_CONFIG);
+    }, []);
 
     return (
         <AnimatedPressable

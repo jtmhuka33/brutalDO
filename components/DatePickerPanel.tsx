@@ -1,3 +1,4 @@
+// components/DatePickerPanel.tsx
 import React, { useState, useCallback } from "react";
 import { View, Text, Pressable, useColorScheme } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -7,9 +8,10 @@ import { clsx } from "clsx";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    withSpring,
+    withTiming,
     FadeIn,
     FadeOut,
+    Easing,
 } from "react-native-reanimated";
 
 import RecurrencePicker from "./RecurrencePicker";
@@ -34,6 +36,11 @@ interface DatePickerPanelProps {
 type PickerMode = "reminder" | "dueDate" | null;
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const TIMING_CONFIG = {
+    duration: 150,
+    easing: Easing.out(Easing.quad),
+};
 
 export default function DatePickerPanel({
                                             reminderDate,
@@ -63,34 +70,22 @@ export default function DatePickerPanel({
 
     const handleReminderPressIn = useCallback(() => {
         "worklet";
-        reminderScale.value = withSpring(0.92, {
-            damping: 12,
-            stiffness: 400,
-        });
+        reminderScale.value = withTiming(0.96, TIMING_CONFIG);
     }, []);
 
     const handleReminderPressOut = useCallback(() => {
         "worklet";
-        reminderScale.value = withSpring(1, {
-            damping: 10,
-            stiffness: 350,
-        });
+        reminderScale.value = withTiming(1, TIMING_CONFIG);
     }, []);
 
     const handleDueDatePressIn = useCallback(() => {
         "worklet";
-        dueDateScale.value = withSpring(0.92, {
-            damping: 12,
-            stiffness: 400,
-        });
+        dueDateScale.value = withTiming(0.96, TIMING_CONFIG);
     }, []);
 
     const handleDueDatePressOut = useCallback(() => {
         "worklet";
-        dueDateScale.value = withSpring(1, {
-            damping: 10,
-            stiffness: 350,
-        });
+        dueDateScale.value = withTiming(1, TIMING_CONFIG);
     }, []);
 
     const showReminderPicker = useCallback(() => {
@@ -181,8 +176,8 @@ export default function DatePickerPanel({
 
     return (
         <Animated.View
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(150)}
+            entering={FadeIn.duration(200).easing(Easing.out(Easing.quad))}
+            exiting={FadeOut.duration(150).easing(Easing.in(Easing.quad))}
             className="mt-4 gap-3"
         >
             {/* Due Date Section */}
