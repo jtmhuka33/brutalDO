@@ -15,6 +15,7 @@ import {
 } from "react-native-reanimated";
 
 import { TodoListProvider } from "@/context/TodoListContext";
+import { ToastProvider } from "@/context/ToastContext";
 import ProjectDrawer from "@/components/ProjectDrawer";
 
 configureReanimatedLogger({
@@ -49,37 +50,39 @@ export default function RootLayout() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <TodoListProvider>
-                <View
-                    style={{
-                        flex: 1,
-                        backgroundColor: theme.background,
-                    }}
-                >
-                    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-                        <Drawer
-                            drawerContent={(props) => <ProjectDrawer {...props} />}
-                            screenOptions={{
-                                headerShown: false,
-                                drawerStyle: {
-                                    width: "80%",
-                                    backgroundColor: isDark ? "#0A0A0A" : "#FFF8F0",
-                                },
-                                drawerType: "front",
-                                swipeEdgeWidth: 50,
-                                swipeMinDistance: 10,
-                            }}
-                        >
-                            <Drawer.Screen
-                                name="(tabs)"
-                                options={{
+                <ToastProvider>
+                    <View
+                        style={{
+                            flex: 1,
+                            backgroundColor: theme.background,
+                        }}
+                    >
+                        <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+                            <Drawer
+                                drawerContent={(props) => <ProjectDrawer {...props} />}
+                                screenOptions={{
                                     headerShown: false,
-                                    swipeEnabled: true,
+                                    drawerStyle: {
+                                        width: "80%",
+                                        backgroundColor: isDark ? "#0A0A0A" : "#FFF8F0",
+                                    },
+                                    drawerType: "front",
+                                    swipeEdgeWidth: 50,
+                                    swipeMinDistance: 10,
                                 }}
-                            />
-                        </Drawer>
-                        <StatusBar style={isDark ? "light" : "dark"} />
-                    </ThemeProvider>
-                </View>
+                            >
+                                <Drawer.Screen
+                                    name="(tabs)"
+                                    options={{
+                                        headerShown: false,
+                                        swipeEnabled: true,
+                                    }}
+                                />
+                            </Drawer>
+                            <StatusBar style={isDark ? "light" : "dark"} />
+                        </ThemeProvider>
+                    </View>
+                </ToastProvider>
             </TodoListProvider>
         </GestureHandlerRootView>
     );

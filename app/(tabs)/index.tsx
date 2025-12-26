@@ -1,5 +1,6 @@
-// app/(tabs)/index.tsx
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import UndoToast from "@/components/UndoToast";
+import { useToast } from "@/context/ToastContext";
 import ZenModeButton from "@/components/ZenModeButton";
 import {
     View,
@@ -75,6 +76,7 @@ export default function TodoApp() {
     const responseListener = useRef<Notifications.EventSubscription>();
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
+    const { showDeleteToast, toast } = useToast();
 
     const { selectedListId, selectedList } = useTodoList();
 
@@ -266,15 +268,37 @@ export default function TodoApp() {
     const deleteTodo = useCallback(
         async (id: string) => {
             const todo = todos.find((t) => t.id === id);
+            if (!todo) return;
 
-            if (todo?.notificationId) {
+            // Cancel notification if exists
+            if (todo.notificationId) {
                 await cancelNotification(todo.notificationId);
             }
 
+            // Remove from list
             setTodos((prev) => prev.filter((t) => t.id !== id));
+
+            // Show undo toast
+            showDeleteToast(todo);
         },
-        [todos]
+        [todos, showDeleteToast]
     );
+
+    const restoreDeletedTodo = useCallback(() => {
+        const deletedTodo = toast.deletedTodo;
+        if (deletedTodo) {
+            setTodos((prev) => {
+                // Check if already exists (prevent duplicates)
+                if (prev.some((t) => t.id === deletedTodo.id)) {
+                    return prev;
+                }
+                // Add back to the list in original position based on ID
+                const newTodos = [...prev, deletedTodo];
+                // Re-sort to maintain order
+                return newTodos;
+            });
+        }
+    }, [toast.deletedTodo]);
 
     // Clear all archived items
     const clearAllArchived = useCallback(() => {
@@ -637,6 +661,7 @@ export default function TodoApp() {
                     onDelete={deleteTodo}
                     onClearAll={clearAllArchived}
                 />
+                <UndoToast onUndo={restoreDeletedTodo} />
             </View>
         </TouchableWithoutFeedback>
     );

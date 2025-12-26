@@ -1,4 +1,3 @@
-// components/ArchiveModal.tsx
 import React, { useCallback, useMemo } from "react";
 import {
     View,
@@ -21,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import * as Haptics from "expo-haptics";
+import { useToast } from "@/context/ToastContext";
 
 import { Todo } from "@/types/todo";
 
@@ -51,9 +51,10 @@ interface ArchivedItemProps {
     index: number;
     onRestore: (id: string) => void;
     onDelete: (id: string) => void;
+    onShowDeleteToast: (todo: Todo) => void;
 }
 
-function ArchivedItem({ item, index, onRestore, onDelete }: ArchivedItemProps) {
+function ArchivedItem({ item, index, onRestore, onDelete, onShowDeleteToast }: ArchivedItemProps) {
     const colorScheme = useColorScheme();
 
     const handleRestore = useCallback(async () => {
@@ -75,11 +76,12 @@ function ArchivedItem({ item, index, onRestore, onDelete }: ArchivedItemProps) {
                             Haptics.NotificationFeedbackType.Warning
                         );
                         onDelete(item.id);
+                        onShowDeleteToast(item);
                     },
                 },
             ]
         );
-    }, [onDelete, item]);
+    }, [onDelete, item, onShowDeleteToast]);
 
     const formatArchivedDate = (dateString?: string) => {
         if (!dateString) return "Unknown";
@@ -161,6 +163,7 @@ export default function ArchiveModal({
                                      }: ArchiveModalProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
+    const { showDeleteToast, toast } = useToast();
 
     const handleClearAll = useCallback(() => {
         if (archivedTodos.length === 0) return;
@@ -193,9 +196,10 @@ export default function ArchiveModal({
                 index={index}
                 onRestore={onRestore}
                 onDelete={onDelete}
+                onShowDeleteToast={showDeleteToast}
             />
         ),
-        [onRestore, onDelete]
+        [onRestore, onDelete, showDeleteToast]
     );
 
     const keyExtractor = useCallback((item: Todo) => item.id, []);
