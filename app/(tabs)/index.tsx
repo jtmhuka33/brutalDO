@@ -11,8 +11,6 @@ import {
     Pressable,
     Text,
     TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
     useColorScheme,
     View,
 } from "react-native";
@@ -52,8 +50,7 @@ const TIMING_CONFIG = {
     easing: Easing.out(Easing.quad),
 };
 
-const AnimatedTouchableOpacity =
-    Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function TodoApp() {
     const [text, setText] = useState("");
@@ -68,6 +65,7 @@ export default function TodoApp() {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
     const { showDeleteToast, toast } = useToast();
+    const inputRef = useRef<TextInput>(null);
 
     const { selectedListId, selectedList } = useTodoList();
 
@@ -158,6 +156,7 @@ export default function TodoApp() {
     }, []);
 
     const handleOpenDrawer = useCallback(async () => {
+        Keyboard.dismiss();
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         menuScale.value = withTiming(0.9, TIMING_CONFIG, () => {
             menuScale.value = withTiming(1, TIMING_CONFIG);
@@ -303,6 +302,8 @@ export default function TodoApp() {
     const startEditing = useCallback((todo: Todo) => {
         setText(todo.text);
         setEditingId(todo.id);
+        // Focus the input when editing
+        setTimeout(() => inputRef.current?.focus(), 100);
     }, []);
 
     const handleSetReminder = useCallback(
@@ -543,118 +544,125 @@ export default function TodoApp() {
         );
     }, [archivedTodos.length]);
 
+    const handleScrollBeginDrag = useCallback(() => {
+        Keyboard.dismiss();
+    }, []);
+
     return (
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            <View className="flex-1 bg-neo-bg px-6 pt-8 dark:bg-neo-dark">
-                <StatusBar style="auto" />
+        <View className="flex-1 bg-neo-bg px-6 pt-8 dark:bg-neo-dark">
+            <StatusBar style="auto" />
 
-                {/* Header with Menu Button */}
-                <Animated.View
-                    entering={FadeIn.duration(300).easing(Easing.out(Easing.quad))}
-                    className="mb-6 flex flex-row items-center justify-between"
-                >
-                    {/* Menu Button */}
-                    <Animated.View style={menuAnimatedStyle}>
-                        <Pressable
-                            onPress={handleOpenDrawer}
-                            className="mr-4 h-14 w-14 items-center justify-center border-5 border-black bg-neo-accent shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-primary dark:shadow-brutal-dark-sm"
-                        >
-                            <Ionicons
-                                name="menu-sharp"
-                                size={28}
-                                color={colorScheme === "dark" ? "white" : "black"}
-                            />
-                        </Pressable>
-                    </Animated.View>
-
-                    {/* Title - Now shows current list name */}
-                    <View className="flex-1 flex-row items-center gap-3">
-                        <Text
-                            className="text-3xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight"
-                            numberOfLines={1}
-                        >
-                            {selectedList?.name || "Inbox"}
-                        </Text>
-                    </View>
-
-                    {/* Zen Mode Button */}
-                    <ZenModeButton />
-                </Animated.View>
-
-                {/* Sort Selector */}
-                <SortSelector activeSort={sortBy} onSortChange={handleSortChange} />
-
-                {/* Input Area */}
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === "ios" ? "padding" : "height"}
-                    className="mb-8 flex-row gap-4"
-                >
-                    <TextInput
-                        value={text}
-                        onChangeText={setText}
-                        placeholder={
-                            editingId ? "EDIT TASK..." : "WHAT'S THE TASK?!"
-                        }
-                        placeholderTextColor={
-                            colorScheme === "dark" ? "#666" : "#999"
-                        }
-                        className="flex-1 border-5 border-black bg-white p-5 font-black text-lg text-black shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white dark:shadow-brutal-dark uppercase"
-                        returnKeyType="done"
-                        onSubmitEditing={handleAddOrUpdate}
-                        submitBehavior="blurAndSubmit"
-                    />
-                    <AnimatedTouchableOpacity
-                        onPress={handleAddOrUpdate}
-                        style={buttonAnimatedStyle}
-                        activeOpacity={0.9}
-                        className={cn(
-                            "items-center justify-center border-5 border-black px-7 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                            editingId ? "bg-neo-secondary" : "bg-neo-accent"
-                        )}
+            {/* Header with Menu Button */}
+            <Animated.View
+                entering={FadeIn.duration(300).easing(Easing.out(Easing.quad))}
+                className="mb-6 flex flex-row items-center justify-between"
+            >
+                {/* Menu Button */}
+                <Animated.View style={menuAnimatedStyle}>
+                    <Pressable
+                        onPress={handleOpenDrawer}
+                        className="mr-4 h-14 w-14 items-center justify-center border-5 border-black bg-neo-accent shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-primary dark:shadow-brutal-dark-sm"
                     >
                         <Ionicons
-                            name={editingId ? "save-sharp" : "add-sharp"}
-                            size={36}
-                            color="black"
+                            name="menu-sharp"
+                            size={28}
+                            color={colorScheme === "dark" ? "white" : "black"}
                         />
-                    </AnimatedTouchableOpacity>
-                </KeyboardAvoidingView>
+                    </Pressable>
+                </Animated.View>
 
-                {/* List */}
-                <FlatList
-                    data={activeTodos}
-                    extraData={sortBy}
-                    keyExtractor={keyExtractor}
-                    renderItem={renderTodoItem}
-                    contentContainerStyle={{
-                        paddingBottom: Math.max(insets.bottom, 24) + 24,
-                    }}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                    ListFooterComponent={ListFooterComponent}
-                    ListEmptyComponent={
-                        <Animated.View
-                            entering={FadeIn.duration(400).delay(200).easing(Easing.out(Easing.quad))}
-                            className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-neo-primary rotate-2"
-                        >
-                            <Text className="text-3xl font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">
-                                ALL CLEAR!
-                            </Text>
-                        </Animated.View>
+                {/* Title - Now shows current list name */}
+                <View className="flex-1 flex-row items-center gap-3">
+                    <Text
+                        className="text-3xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight"
+                        numberOfLines={1}
+                    >
+                        {selectedList?.name || "Inbox"}
+                    </Text>
+                </View>
+
+                {/* Zen Mode Button */}
+                <ZenModeButton />
+            </Animated.View>
+
+            {/* Sort Selector */}
+            <SortSelector activeSort={sortBy} onSortChange={handleSortChange} />
+
+            {/* Input Area */}
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                className="mb-8 flex-row gap-4"
+            >
+                <TextInput
+                    ref={inputRef}
+                    value={text}
+                    onChangeText={setText}
+                    placeholder={
+                        editingId ? "EDIT TASK..." : "WHAT'S THE TASK?!"
                     }
+                    placeholderTextColor={
+                        colorScheme === "dark" ? "#666" : "#999"
+                    }
+                    className="flex-1 border-5 border-black bg-white p-5 font-black text-lg text-black shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white dark:shadow-brutal-dark uppercase"
+                    returnKeyType="done"
+                    onSubmitEditing={handleAddOrUpdate}
+                    submitBehavior="blurAndSubmit"
                 />
+                <AnimatedPressable
+                    onPress={handleAddOrUpdate}
+                    style={buttonAnimatedStyle}
+                    className={cn(
+                        "items-center justify-center border-5 border-black px-7 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
+                        editingId ? "bg-neo-secondary" : "bg-neo-accent"
+                    )}
+                >
+                    <Ionicons
+                        name={editingId ? "save-sharp" : "add-sharp"}
+                        size={36}
+                        color="black"
+                    />
+                </AnimatedPressable>
+            </KeyboardAvoidingView>
 
-                {/* Archive Modal */}
-                <ArchiveModal
-                    visible={showArchive}
-                    onClose={() => setShowArchive(false)}
-                    archivedTodos={archivedTodos}
-                    onRestore={restoreTodo}
-                    onDelete={deleteTodo}
-                    onClearAll={clearAllArchived}
-                />
-                <UndoToast onUndo={restoreDeletedTodo} />
-            </View>
-        </TouchableWithoutFeedback>
+            {/* List */}
+            <FlatList
+                data={activeTodos}
+                extraData={sortBy}
+                keyExtractor={keyExtractor}
+                renderItem={renderTodoItem}
+                contentContainerStyle={{
+                    paddingBottom: Math.max(insets.bottom, 24) + 24,
+                    flexGrow: 1,
+                }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                onScrollBeginDrag={handleScrollBeginDrag}
+                removeClippedSubviews={false}
+                scrollEventThrottle={16}
+                ListFooterComponent={ListFooterComponent}
+                ListEmptyComponent={
+                    <Animated.View
+                        entering={FadeIn.duration(400).delay(200).easing(Easing.out(Easing.quad))}
+                        className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-neo-primary rotate-2"
+                    >
+                        <Text className="text-3xl font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">
+                            ALL CLEAR!
+                        </Text>
+                    </Animated.View>
+                }
+            />
+
+            {/* Archive Modal */}
+            <ArchiveModal
+                visible={showArchive}
+                onClose={() => setShowArchive(false)}
+                archivedTodos={archivedTodos}
+                onRestore={restoreTodo}
+                onDelete={deleteTodo}
+                onClearAll={clearAllArchived}
+            />
+            <UndoToast onUndo={restoreDeletedTodo} />
+        </View>
     );
 }

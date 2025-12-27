@@ -6,13 +6,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withTiming,
     FadeIn,
     FadeOut,
     Easing,
 } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 
 import RecurrencePicker from "./RecurrencePicker";
 import { RecurrencePattern } from "@/types/recurrence";
@@ -35,13 +33,6 @@ interface DatePickerPanelProps {
 
 type PickerMode = "reminder" | "dueDate" | null;
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-const TIMING_CONFIG = {
-    duration: 150,
-    easing: Easing.out(Easing.quad),
-};
-
 export default function DatePickerPanel({
                                             reminderDate,
                                             dueDate,
@@ -57,43 +48,14 @@ export default function DatePickerPanel({
     const [pickerMode, setPickerMode] = useState<PickerMode>(null);
     const colorScheme = useColorScheme();
 
-    const reminderScale = useSharedValue(1);
-    const dueDateScale = useSharedValue(1);
-
-    const reminderAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: reminderScale.value }],
-    }));
-
-    const dueDateAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: dueDateScale.value }],
-    }));
-
-    const handleReminderPressIn = useCallback(() => {
-        "worklet";
-        reminderScale.value = withTiming(0.96, TIMING_CONFIG);
-    }, []);
-
-    const handleReminderPressOut = useCallback(() => {
-        "worklet";
-        reminderScale.value = withTiming(1, TIMING_CONFIG);
-    }, []);
-
-    const handleDueDatePressIn = useCallback(() => {
-        "worklet";
-        dueDateScale.value = withTiming(0.96, TIMING_CONFIG);
-    }, []);
-
-    const handleDueDatePressOut = useCallback(() => {
-        "worklet";
-        dueDateScale.value = withTiming(1, TIMING_CONFIG);
-    }, []);
-
-    const showReminderPicker = useCallback(() => {
+    const showReminderPicker = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setPickerMode("reminder");
         setDatePickerVisibility(true);
     }, []);
 
-    const showDueDatePicker = useCallback(() => {
+    const showDueDatePicker = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setPickerMode("dueDate");
         setDatePickerVisibility(true);
     }, []);
@@ -114,6 +76,16 @@ export default function DatePickerPanel({
         },
         [pickerMode, onSetReminder, onSetDueDate, hideDatePicker]
     );
+
+    const handleClearReminder = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onClearReminder();
+    }, [onClearReminder]);
+
+    const handleClearDueDate = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onClearDueDate();
+    }, [onClearDueDate]);
 
     const formatReminderDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -220,7 +192,8 @@ export default function DatePickerPanel({
                             </View>
                         </View>
                         <Pressable
-                            onPress={onClearDueDate}
+                            onPress={handleClearDueDate}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             className={cn(
                                 "h-10 w-10 items-center justify-center border-4 border-black shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
                                 isDueDateOverdue(dueDate)
@@ -237,11 +210,8 @@ export default function DatePickerPanel({
                     </View>
                 )}
 
-                <AnimatedPressable
+                <Pressable
                     onPress={showDueDatePicker}
-                    onPressIn={handleDueDatePressIn}
-                    onPressOut={handleDueDatePressOut}
-                    style={dueDateAnimatedStyle}
                     className={cn(
                         "flex-row items-center justify-center gap-3 border-5 border-black p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
                         dueDate
@@ -257,7 +227,7 @@ export default function DatePickerPanel({
                     <Text className="font-black uppercase tracking-tight text-black text-base">
                         {dueDate ? "CHANGE DUE DATE" : "SET DUE DATE"}
                     </Text>
-                </AnimatedPressable>
+                </Pressable>
             </View>
 
             {/* Recurrence Section */}
@@ -286,7 +256,8 @@ export default function DatePickerPanel({
                             </Text>
                         </View>
                         <Pressable
-                            onPress={onClearReminder}
+                            onPress={handleClearReminder}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             className="h-10 w-10 items-center justify-center border-4 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
                         >
                             <Ionicons name="close-sharp" size={20} color="white" />
@@ -294,11 +265,8 @@ export default function DatePickerPanel({
                     </View>
                 )}
 
-                <AnimatedPressable
+                <Pressable
                     onPress={showReminderPicker}
-                    onPressIn={handleReminderPressIn}
-                    onPressOut={handleReminderPressOut}
-                    style={reminderAnimatedStyle}
                     className={cn(
                         "flex-row items-center justify-center gap-3 border-5 border-black p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
                         reminderDate
@@ -314,7 +282,7 @@ export default function DatePickerPanel({
                     <Text className="font-black uppercase tracking-tight text-black text-base">
                         {reminderDate ? "CHANGE REMINDER" : "SET REMINDER"}
                     </Text>
-                </AnimatedPressable>
+                </Pressable>
             </View>
 
             {pickerMode === "reminder" ? (
