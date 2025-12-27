@@ -1,52 +1,42 @@
-import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import UndoToast from "@/components/UndoToast";
-import { useToast } from "@/context/ToastContext";
+import {useToast} from "@/context/ToastContext";
 import ZenModeButton from "@/components/ZenModeButton";
 import {
-    View,
+    Alert,
+    FlatList,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
     Text,
     TextInput,
     TouchableOpacity,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    useColorScheme,
-    Keyboard,
     TouchableWithoutFeedback,
-    Alert,
-    Pressable,
+    useColorScheme,
+    View,
 } from "react-native";
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withTiming,
-    FadeIn,
-    Easing,
-} from "react-native-reanimated";
+import Animated, {Easing, FadeIn, useAnimatedStyle, useSharedValue, withTiming,} from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { StatusBar } from "expo-status-bar";
-import { Ionicons } from "@expo/vector-icons";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import {StatusBar} from "expo-status-bar";
+import {Ionicons} from "@expo/vector-icons";
+import {clsx} from "clsx";
+import {twMerge} from "tailwind-merge";
 import * as Notifications from "expo-notifications";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect, useNavigation } from "expo-router";
-import { DrawerActions } from "@react-navigation/native";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {useNavigation} from "expo-router";
+import {DrawerActions} from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 
 import TodoItem from "@/components/TodoItem";
 import ArchiveButton from "@/components/ArchiveButton";
 import ArchiveModal from "@/components/ArchiveModal";
-import { Todo, SortType } from "@/types/todo";
-import { RecurrencePattern } from "@/types/recurrence";
-import { DEFAULT_LIST_ID } from "@/types/todoList";
-import { useTodoList } from "@/context/TodoListContext";
-import {
-    registerForPushNotificationsAsync,
-    scheduleNotification,
-    cancelNotification,
-} from "@/utils/notifications";
-import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
+import {SortType, Todo} from "@/types/todo";
+import {RecurrencePattern} from "@/types/recurrence";
+import {DEFAULT_LIST_ID} from "@/types/todoList";
+import {useTodoList} from "@/context/TodoListContext";
+import {cancelNotification, registerForPushNotificationsAsync, scheduleNotification,} from "@/utils/notifications";
+import {createNextRecurringTodo, isRecurrenceActive} from "@/utils/recurrence";
 import SortSelector from "@/components/SortSelector";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -71,6 +61,7 @@ export default function TodoApp() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<SortType>("DEFAULT");
     const [showArchive, setShowArchive] = useState(false);
+    const [isInitialLoad, setIsInitialLoad] = useState(true)
     const colorScheme = useColorScheme();
     const notificationListener = useRef<Notifications.EventSubscription>();
     const responseListener = useRef<Notifications.EventSubscription>();
@@ -133,16 +124,21 @@ export default function TodoApp() {
         }
     }, []);
 
-    useFocusEffect(
-        useCallback(() => {
-            loadTodos();
-            loadSortPreference();
-        }, [loadTodos, loadSortPreference])
-    );
+    useEffect(() => {
+        const initializeApp = async () => {
+            await loadTodos();
+            await loadSortPreference();
+            setIsInitialLoad(false);
+        };
+
+        initializeApp();
+    }, []);
 
     useEffect(() => {
-        saveTodos(todos);
-    }, [todos]);
+        if (!isInitialLoad) {
+            saveTodos(todos);
+        }
+    }, [todos, isInitialLoad]);
 
     const saveTodos = async (newTodos: Todo[]) => {
         try {
@@ -293,9 +289,8 @@ export default function TodoApp() {
                     return prev;
                 }
                 // Add back to the list in original position based on ID
-                const newTodos = [...prev, deletedTodo];
                 // Re-sort to maintain order
-                return newTodos;
+                return [...prev, deletedTodo];
             });
         }
     }, [toast.deletedTodo]);
@@ -644,9 +639,6 @@ export default function TodoApp() {
                         >
                             <Text className="text-3xl font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">
                                 ALL CLEAR!
-                            </Text>
-                            <Text className="font-black text-gray-500 dark:text-gray-400 uppercase text-sm mt-2">
-                                (Add a task!)
                             </Text>
                         </Animated.View>
                     }
