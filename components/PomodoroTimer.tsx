@@ -1,17 +1,13 @@
 // components/PomodoroTimer.tsx
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, Pressable, AppState, Alert, ScrollView } from "react-native";
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withTiming,
-    Easing,
-} from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
+import React, {useCallback, useEffect, useRef, useState} from "react";
+import {Alert, AppState, Pressable, ScrollView, Text, View} from "react-native";
+import Animated, {Easing, useAnimatedStyle, useSharedValue, withTiming,} from "react-native-reanimated";
+import {Ionicons} from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { scheduleNotification, cancelNotification } from "@/utils/notifications";
-import { twMerge } from "tailwind-merge";
-import { clsx } from "clsx";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {cancelNotification, scheduleNotification} from "@/utils/notifications";
+import {twMerge} from "tailwind-merge";
+import {clsx} from "clsx";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -27,8 +23,17 @@ interface PomodoroTimerProps {
 const WORK_TIME = 25 * 60; // 25 minutes in seconds
 const SHORT_BREAK = 5 * 60; // 5 minutes
 const LONG_BREAK = 15 * 60; // 15 minutes
+const TIMER_STORAGE_KEY = "@pomodoro_timer_state";
 
 type TimerState = "work" | "shortBreak" | "longBreak";
+
+interface PersistedTimerState {
+    endTime: number;
+    timerState: TimerState;
+    sessionsCompleted: number;
+    taskId: string;
+    isRunning: boolean;
+}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -48,10 +53,29 @@ export default function PomodoroTimer({
     const [timerState, setTimerState] = useState<TimerState>("work");
     const [sessionsCompleted, setSessionsCompleted] = useState(0);
     const [notificationId, setNotificationId] = useState<string | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
 
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
-    const startTimeRef = useRef<number | null>(null);
-    const appState = useRef(AppState.currentState);
+    const endTimeRef = useRef<number | null>(null);
+    const appStateRef = useRef(AppState.currentState);
+
+    // Use refs for values accessed in callbacks to avoid stale closures
+    const isRunningRef = useRef(isRunning);
+    const timerStateRef = useRef(timerState);
+    const sessionsCompletedRef = useRef(sessionsCompleted);
+
+    // Keep refs in sync with state
+    useEffect(() => {
+        isRunningRef.current = isRunning;
+    }, [isRunning]);
+
+    useEffect(() => {
+        timerStateRef.current = timerState;
+    }, [timerState]);
+
+    useEffect(() => {
+        sessionsCompletedRef.current = sessionsCompleted;
+    }, [sessionsCompleted]);
 
     const scale = useSharedValue(1);
     const progress = useSharedValue(1);
@@ -80,77 +104,80 @@ export default function PomodoroTimer({
         }
     }, []);
 
-    const handleAppStateChange = useCallback(async (nextAppState: string) => {
-        if (
-            appState.current.match(/inactive|background/) &&
-            nextAppState === "active"
-        ) {
-            // App came to foreground - recalculate time
-            if (isRunning && startTimeRef.current) {
-                const now = Date.now();
-                const elapsed = Math.floor((now - startTimeRef.current) / 1000);
-                const newTimeLeft = Math.max(0, timeLeft - elapsed);
-
-                if (newTimeLeft > 0) {
-                    setTimeLeft(newTimeLeft);
-                    startTimeRef.current = now;
-                }
-            }
+    // Persist timer state to AsyncStorage
+    const persistTimerState = useCallback(async () => {
+        if (!isRunningRef.current || !endTimeRef.current) {
+            await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
+            return;
         }
 
-        appState.current = nextAppState;
-    }, [isRunning, timeLeft]);
-
-    useEffect(() => {
-        const subscription = AppState.addEventListener("change", handleAppStateChange);
-        return () => subscription.remove();
-    }, [handleAppStateChange]);
-
-    useEffect(() => {
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            if (notificationId) cancelNotification(notificationId);
+        const state: PersistedTimerState = {
+            endTime: endTimeRef.current,
+            timerState: timerStateRef.current,
+            sessionsCompleted: sessionsCompletedRef.current,
+            taskId,
+            isRunning: true,
         };
-    }, [notificationId]);
 
-    useEffect(() => {
-        const totalTime = getTimerDuration(timerState);
-        progress.value = withTiming(timeLeft / totalTime, {
-            duration: 300,
-            easing: Easing.linear,
-        });
-    }, [timeLeft, timerState, getTimerDuration]);
-
-    const scheduleTimerNotification = useCallback(async () => {
-        if (notificationId) {
-            await cancelNotification(notificationId);
+        try {
+            await AsyncStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+            console.error("Failed to persist timer state:", e);
         }
+    }, [taskId]);
 
-        const finishTime = new Date(Date.now() + timeLeft * 1000);
-        const message =
-            timerState === "work"
-                ? `Time for a break!`
-                : "Break's over! Ready for the next session?";
+    // Load persisted timer state
+    const loadPersistedState = useCallback(async () => {
+        try {
+            const stored = await AsyncStorage.getItem(TIMER_STORAGE_KEY);
+            if (!stored) return null;
 
-        const id = await scheduleNotification(message, finishTime);
-        setNotificationId(id);
-    }, [notificationId, timeLeft, timerState]);
+            const state: PersistedTimerState = JSON.parse(stored);
 
+            // Only restore if it's for the same task
+            if (state.taskId !== taskId) {
+                await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
+                return null;
+            }
+
+            return state;
+        } catch (e) {
+            console.error("Failed to load timer state:", e);
+            return null;
+        }
+    }, [taskId]);
+
+    // Clear persisted state
+    const clearPersistedState = useCallback(async () => {
+        try {
+            await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
+        } catch (e) {
+            console.error("Failed to clear timer state:", e);
+        }
+    }, []);
+
+    // Calculate remaining time from end time
+    const calculateRemainingTime = useCallback((): number => {
+        if (!endTimeRef.current) return 0;
+        return Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
+    }, []);
+
+    // Handle timer completion
     const handleTimerComplete = useCallback(async () => {
         if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
         }
 
+        endTimeRef.current = null;
         setIsRunning(false);
+        await clearPersistedState();
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        if (timerState === "work") {
-            // Work session completed
-            const newSessionsCompleted = sessionsCompleted + 1;
+        if (timerStateRef.current === "work") {
+            const newSessionsCompleted = sessionsCompletedRef.current + 1;
             setSessionsCompleted(newSessionsCompleted);
 
-            // Every 4th session gets a long break
             const isLongBreak = newSessionsCompleted % 4 === 0;
             const nextState = isLongBreak ? "longBreak" : "shortBreak";
             setTimerState(nextState);
@@ -162,7 +189,6 @@ export default function PomodoroTimer({
                 [{ text: "OK" }]
             );
         } else {
-            // Break completed - start next work session
             setTimerState("work");
             setTimeLeft(WORK_TIME);
 
@@ -172,40 +198,157 @@ export default function PomodoroTimer({
                 [{ text: "Let's go!" }]
             );
         }
-    }, [timerState, sessionsCompleted, getTimerDuration]);
+    }, [getTimerDuration, clearPersistedState]);
 
-    const startTimer = useCallback(async () => {
-        setIsRunning(true);
-        startTimeRef.current = Date.now();
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        if (appState.current !== "active") {
-            await scheduleTimerNotification();
+    // Start the interval timer
+    const startInterval = useCallback(() => {
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
         }
 
         intervalRef.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    handleTimerComplete();
-                    return 0;
-                }
-                return prev - 1;
-            });
+            const remaining = calculateRemainingTime();
+
+            if (remaining <= 0) {
+                handleTimerComplete();
+            } else {
+                setTimeLeft(remaining);
+            }
         }, 1000);
-    }, [scheduleTimerNotification, handleTimerComplete]);
+    }, [calculateRemainingTime, handleTimerComplete]);
+
+    // Handle app state changes (background/foreground)
+    const handleAppStateChange = useCallback(async (nextAppState: string) => {
+        const previousState = appStateRef.current;
+        appStateRef.current = nextAppState;
+
+        if (
+            previousState.match(/inactive|background/) &&
+            nextAppState === "active"
+        ) {
+            // App came to foreground
+            if (isRunningRef.current && endTimeRef.current) {
+                const remaining = calculateRemainingTime();
+
+                if (remaining <= 0) {
+                    handleTimerComplete();
+                } else {
+                    setTimeLeft(remaining);
+                    startInterval();
+                }
+            }
+        } else if (nextAppState === "background" || nextAppState === "inactive") {
+            // App going to background
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+
+            // Persist state for potential app termination
+            await persistTimerState();
+        }
+    }, [calculateRemainingTime, handleTimerComplete, startInterval, persistTimerState]);
+
+    // Set up AppState listener
+    useEffect(() => {
+        const subscription = AppState.addEventListener("change", handleAppStateChange);
+        return () => subscription.remove();
+    }, [handleAppStateChange]);
+
+    // Initialize timer (check for persisted state)
+    useEffect(() => {
+        const initialize = async () => {
+            const persistedState = await loadPersistedState();
+
+            if (persistedState && persistedState.isRunning) {
+                const remaining = Math.max(0, Math.ceil((persistedState.endTime - Date.now()) / 1000));
+
+                if (remaining > 0) {
+                    endTimeRef.current = persistedState.endTime;
+                    setTimerState(persistedState.timerState);
+                    setSessionsCompleted(persistedState.sessionsCompleted);
+                    setTimeLeft(remaining);
+                    setIsRunning(true);
+                    startInterval();
+                } else {
+                    // Timer would have completed while app was closed
+                    await clearPersistedState();
+                    setTimerState(persistedState.timerState);
+                    setSessionsCompleted(persistedState.sessionsCompleted);
+                    handleTimerComplete();
+                }
+            }
+
+            setIsInitialized(true);
+        };
+
+        initialize();
+    }, [loadPersistedState, clearPersistedState, startInterval, handleTimerComplete]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            if (notificationId) cancelNotification(notificationId);
+        };
+    }, [notificationId]);
+
+    // Update progress bar
+    useEffect(() => {
+        const totalTime = getTimerDuration(timerState);
+        progress.value = withTiming(timeLeft / totalTime, {
+            duration: 300,
+            easing: Easing.linear,
+        });
+    }, [timeLeft, timerState, getTimerDuration]);
+
+    const scheduleTimerNotification = useCallback(async (duration: number) => {
+        if (notificationId) {
+            await cancelNotification(notificationId);
+        }
+
+        const finishTime = new Date(Date.now() + duration * 1000);
+        const message =
+            timerStateRef.current === "work"
+                ? `Time for a break!`
+                : "Break's over! Ready for the next session?";
+
+        const id = await scheduleNotification(message, finishTime);
+        setNotificationId(id);
+    }, [notificationId]);
+
+    const startTimer = useCallback(async () => {
+        getTimerDuration(timerState);
+        endTimeRef.current = Date.now() + timeLeft * 1000;
+
+        setIsRunning(true);
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        await scheduleTimerNotification(timeLeft);
+
+        startInterval();
+        await persistTimerState();
+    }, [timerState, timeLeft, getTimerDuration, scheduleTimerNotification, startInterval, persistTimerState]);
 
     const pauseTimer = useCallback(async () => {
-        setIsRunning(false);
         if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
         }
+
+        const remaining = calculateRemainingTime();
+        setTimeLeft(remaining);
+
+        endTimeRef.current = null;
+        setIsRunning(false);
+
         if (notificationId) {
             await cancelNotification(notificationId);
             setNotificationId(null);
         }
+
+        await clearPersistedState();
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }, [notificationId]);
+    }, [notificationId, calculateRemainingTime, clearPersistedState]);
 
     const resetTimer = useCallback(() => {
         Alert.alert(
@@ -224,15 +367,18 @@ export default function PomodoroTimer({
                         if (notificationId) {
                             await cancelNotification(notificationId);
                         }
+
+                        endTimeRef.current = null;
                         setIsRunning(false);
                         setTimerState("work");
                         setTimeLeft(WORK_TIME);
+                        await clearPersistedState();
                         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                     },
                 },
             ]
         );
-    }, [notificationId]);
+    }, [notificationId, clearPersistedState]);
 
     const handleCompleteTaskPress = useCallback(() => {
         Alert.alert(
@@ -243,7 +389,6 @@ export default function PomodoroTimer({
                 {
                     text: "Complete",
                     onPress: async () => {
-                        // Stop timer if running
                         if (intervalRef.current) {
                             clearInterval(intervalRef.current);
                             intervalRef.current = null;
@@ -251,13 +396,14 @@ export default function PomodoroTimer({
                         if (notificationId) {
                             await cancelNotification(notificationId);
                         }
+                        await clearPersistedState();
                         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         onCompleteTask(taskId);
                     },
                 },
             ]
         );
-    }, [notificationId, onCompleteTask, taskId]);
+    }, [notificationId, onCompleteTask, taskId, clearPersistedState]);
 
     const handleMainButtonPressIn = useCallback(() => {
         'worklet';
@@ -314,6 +460,17 @@ export default function PomodoroTimer({
             startTimer();
         }
     }, [isRunning, pauseTimer, startTimer]);
+
+    // Show loading state while initializing
+    if (!isInitialized) {
+        return (
+            <View className="flex-1 items-center justify-center">
+                <Text className="text-lg font-black uppercase text-gray-500 dark:text-gray-400">
+                    Loading...
+                </Text>
+            </View>
+        );
+    }
 
     return (
         <ScrollView
@@ -400,6 +557,14 @@ export default function PomodoroTimer({
                         RESET
                     </Text>
                 </Pressable>
+            </View>
+
+            {/* Sessions Counter */}
+            <View className="flex-row items-center justify-center gap-2 border-5 border-dashed border-gray-400 p-4 dark:border-neo-primary">
+                <Ionicons name="flame-sharp" size={20} color="#FF6B00" />
+                <Text className="text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">
+                    Sessions: {sessionsCompleted}
+                </Text>
             </View>
         </ScrollView>
     );
