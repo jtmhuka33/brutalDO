@@ -2,13 +2,13 @@ import "../global.css";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Platform, View } from "react-native";
 import * as SystemUI from "expo-system-ui";
 import * as NavigationBar from "expo-navigation-bar";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Drawer } from "expo-router/drawer";
+import { router } from "expo-router";
 import {
     configureReanimatedLogger,
     ReanimatedLogLevel,
@@ -16,6 +16,7 @@ import {
 
 import { TodoListProvider } from "@/context/TodoListContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { PomodoroProvider, usePomodoro } from "@/context/PomodoroContext";
 import ProjectDrawer from "@/components/ProjectDrawer";
 
 configureReanimatedLogger({
@@ -34,6 +35,56 @@ const COLORS = {
     },
 };
 
+function NavigationContent() {
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === "dark";
+    const { activeTimer, isCheckingTimer } = usePomodoro();
+    const [hasNavigated, setHasNavigated] = useState(false);
+
+    // Navigate to zen mode if there's an active timer
+    useEffect(() => {
+        if (!isCheckingTimer && activeTimer && !hasNavigated) {
+            setHasNavigated(true);
+            // Small delay to ensure navigation is ready
+            setTimeout(() => {
+                router.replace("/(tabs)/zen");
+            }, 100);
+        }
+    }, [isCheckingTimer, activeTimer, hasNavigated]);
+
+    // Show nothing while checking (brief moment)
+    if (isCheckingTimer) {
+        return null;
+    }
+
+    return (
+        <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+            <Drawer
+                drawerContent={(props) => <ProjectDrawer {...props} />}
+                screenOptions={{
+                    headerShown: false,
+                    drawerStyle: {
+                        width: "80%",
+                        backgroundColor: isDark ? "#0A0A0A" : "#FFF8F0",
+                    },
+                    drawerType: "front",
+                    swipeEdgeWidth: 50,
+                    swipeMinDistance: 10,
+                }}
+            >
+                <Drawer.Screen
+                    name="(tabs)"
+                    options={{
+                        headerShown: false,
+                        swipeEnabled: true,
+                    }}
+                />
+            </Drawer>
+            <StatusBar style={isDark ? "light" : "dark"} />
+        </ThemeProvider>
+    );
+}
+
 export default function RootLayout() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
@@ -51,37 +102,16 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <TodoListProvider>
                 <ToastProvider>
-                    <View
-                        style={{
-                            flex: 1,
-                            backgroundColor: theme.background,
-                        }}
-                    >
-                        <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-                            <Drawer
-                                drawerContent={(props) => <ProjectDrawer {...props} />}
-                                screenOptions={{
-                                    headerShown: false,
-                                    drawerStyle: {
-                                        width: "80%",
-                                        backgroundColor: isDark ? "#0A0A0A" : "#FFF8F0",
-                                    },
-                                    drawerType: "front",
-                                    swipeEdgeWidth: 50,
-                                    swipeMinDistance: 10,
-                                }}
-                            >
-                                <Drawer.Screen
-                                    name="(tabs)"
-                                    options={{
-                                        headerShown: false,
-                                        swipeEnabled: true,
-                                    }}
-                                />
-                            </Drawer>
-                            <StatusBar style={isDark ? "light" : "dark"} />
-                        </ThemeProvider>
-                    </View>
+                    <PomodoroProvider>
+                        <View
+                            style={{
+                                flex: 1,
+                                backgroundColor: theme.background,
+                            }}
+                        >
+                            <NavigationContent />
+                        </View>
+                    </PomodoroProvider>
                 </ToastProvider>
             </TodoListProvider>
         </GestureHandlerRootView>

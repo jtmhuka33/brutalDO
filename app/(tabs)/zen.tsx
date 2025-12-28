@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
     View,
     Text,
@@ -18,11 +18,11 @@ import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import { Todo } from "@/types/todo";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
+import { usePomodoro } from "@/context/PomodoroContext";
 import { cancelNotification } from "@/utils/notifications";
 import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
 
@@ -54,14 +54,53 @@ export default function ZenMode() {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
     const [timerStarted, setTimerStarted] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
     const insets = useSafeAreaInsets();
-    const { selectedListId, selectedList } = useTodoList();
+    const { selectedListId, selectedList, setSelectedListId } = useTodoList();
+    const { activeTimer, clearActiveTimer, setActiveTimer } = usePomodoro();
+
+    // Initialize from active timer if exists
+    useEffect(() => {
+        const initFromActiveTimer = async () => {
+            if (activeTimer) {
+                // Load the task from storage
+                try {
+                    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+                    if (stored) {
+                        const allTodos: Todo[] = JSON.parse(stored);
+                        const task = allTodos.find(t => t.id === activeTimer.taskId && !t.archivedAt);
+
+                        if (task) {
+                            // Set the correct list
+                            const taskListId = task.listId || DEFAULT_LIST_ID;
+                            if (taskListId !== selectedListId) {
+                                setSelectedListId(taskListId);
+                            }
+
+                            setSelectedTodo(task);
+                            setTimerStarted(true);
+                        } else {
+                            // Task no longer exists, clear timer
+                            await clearActiveTimer();
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to load task for active timer:", e);
+                }
+            }
+            setIsInitializing(false);
+        };
+
+        initFromActiveTimer();
+    }, [activeTimer]);
 
     // Reload todos when screen is focused
     useFocusEffect(
         useCallback(() => {
-            loadTodos();
-        }, [selectedListId])
+            if (!isInitializing) {
+                loadTodos();
+            }
+        }, [selectedListId, isInitializing])
     );
 
     const loadTodos = async () => {
@@ -112,6 +151,7 @@ export default function ZenMode() {
     const handleComplete = async () => {
         setTimerStarted(false);
         setSelectedTodo(null);
+        setActiveTimer(null);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
@@ -211,11 +251,27 @@ export default function ZenMode() {
 
         setTimerStarted(false);
         setSelectedTodo(null);
+        setActiveTimer(null);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
-    const handleBack = () => {
-        router.back();
+    const handleBack = async () => {
+        // If timer is running, confirm before leaving
+        if (timerStarted && activeTimer) {
+            Alert.alert(
+                "Leave Timer?",
+                "Your timer is still running. It will continue in the background.",
+                [
+                    { text: "Stay", style: "cancel" },
+                    {
+                        text: "Leave",
+                        onPress: () => router.back(),
+                    },
+                ]
+            );
+        } else {
+            router.back();
+        }
     };
 
     // Helper to format recurrence for display
@@ -266,6 +322,18 @@ export default function ZenMode() {
                 };
         }
     };
+
+    // Show loading state while initializing
+    if (isInitializing) {
+        return (
+            <View className="flex-1 items-center justify-center bg-neo-bg dark:bg-neo-dark">
+                <StatusBar style="auto" />
+                <Text className="text-lg font-black uppercase text-gray-500 dark:text-gray-400">
+                    Loading...
+                </Text>
+            </View>
+        );
+    }
 
     if (timerStarted && selectedTodo) {
         return (

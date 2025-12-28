@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { cancelNotification, scheduleNotification } from "@/utils/notifications";
+import { usePomodoro, PersistedTimerState } from "@/context/PomodoroContext";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 
@@ -20,20 +21,12 @@ interface PomodoroTimerProps {
     onCompleteTask: (taskId: string) => void;
 }
 
-const WORK_TIME = 25 * 60; // 25 minutes in seconds
+const WORK_TIME = 25 * 60; // 25 minutes
 const SHORT_BREAK = 5 * 60; // 5 minutes
 const LONG_BREAK = 15 * 60; // 15 minutes
 const TIMER_STORAGE_KEY = "@pomodoro_timer_state";
 
 type TimerState = "work" | "shortBreak" | "longBreak";
-
-interface PersistedTimerState {
-    endTime: number;
-    timerState: TimerState;
-    sessionsCompleted: number;
-    taskId: string;
-    isRunning: boolean;
-}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -58,6 +51,7 @@ export default function PomodoroTimer({
     const [endTime, setEndTime] = useState<number | null>(null);
 
     const appStateRef = useRef(AppState.currentState);
+    const { activeTimer, setActiveTimer, } = usePomodoro();
 
     const scale = useSharedValue(1);
     const progress = useSharedValue(1);
@@ -86,15 +80,17 @@ export default function PomodoroTimer({
         }
     }, []);
 
-    // Persist timer state to AsyncStorage
+    // Persist timer state to AsyncStorage and context
     const persistTimerState = useCallback(async (
         running: boolean,
         end: number | null,
         state: TimerState,
-        sessions: number
+        sessions: number,
+        notifId?: string | null
     ) => {
         if (!running || !end) {
             await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
+            setActiveTimer(null);
             return;
         }
 
@@ -103,15 +99,18 @@ export default function PomodoroTimer({
             timerState: state,
             sessionsCompleted: sessions,
             taskId,
+            taskText: selectedTask,
             isRunning: true,
+            notificationId: notifId || undefined,
         };
 
         try {
             await AsyncStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(persistedState));
+            setActiveTimer(persistedState);
         } catch (e) {
             console.error("Failed to persist timer state:", e);
         }
-    }, [taskId]);
+    }, [taskId, selectedTask, setActiveTimer]);
 
     // Load persisted timer state
     const loadPersistedState = useCallback(async () => {
@@ -124,6 +123,7 @@ export default function PomodoroTimer({
             // Only restore if it's for the same task
             if (state.taskId !== taskId) {
                 await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
+                setActiveTimer(null);
                 return null;
             }
 
@@ -132,16 +132,17 @@ export default function PomodoroTimer({
             console.error("Failed to load timer state:", e);
             return null;
         }
-    }, [taskId]);
+    }, [taskId, setActiveTimer]);
 
     // Clear persisted state
     const clearPersistedState = useCallback(async () => {
         try {
             await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
+            setActiveTimer(null);
         } catch (e) {
             console.error("Failed to clear timer state:", e);
         }
-    }, []);
+    }, [setActiveTimer]);
 
     // Handle timer completion
     const handleTimerComplete = useCallback(async (currentState: TimerState, currentSessions: number) => {
@@ -176,7 +177,6 @@ export default function PomodoroTimer({
         }
     }, [getTimerDuration, clearPersistedState]);
 
-    // THE KEY FIX: Use useEffect to manage the interval based on isRunning and endTime
     useEffect(() => {
         if (!isRunning || !endTime) {
             return;
@@ -239,17 +239,42 @@ export default function PomodoroTimer({
                 }
             } else if (nextAppState === "background" || nextAppState === "inactive") {
                 // App going to background - persist state
-                await persistTimerState(isRunning, endTime, timerState, sessionsCompleted);
+                await persistTimerState(isRunning, endTime, timerState, sessionsCompleted, notificationId);
             }
         };
 
         const subscription = AppState.addEventListener("change", handleAppStateChange);
         return () => subscription.remove();
-    }, [isRunning, endTime, timerState, sessionsCompleted, handleTimerComplete, persistTimerState]);
+    }, [isRunning, endTime, timerState, sessionsCompleted, notificationId, handleTimerComplete, persistTimerState]);
 
     // Initialize timer (check for persisted state)
     useEffect(() => {
         const initialize = async () => {
+            // First check if we have an active timer from context
+            if (activeTimer && activeTimer.taskId === taskId) {
+                const remaining = Math.max(0, Math.ceil((activeTimer.endTime - Date.now()) / 1000));
+
+                if (remaining > 0) {
+                    setEndTime(activeTimer.endTime);
+                    setTimerState(activeTimer.timerState);
+                    setSessionsCompleted(activeTimer.sessionsCompleted);
+                    setTimeLeft(remaining);
+                    setIsRunning(true);
+                    if (activeTimer.notificationId) {
+                        setNotificationId(activeTimer.notificationId);
+                    }
+                    setIsInitialized(true);
+                    return;
+                } else {
+                    // Timer would have completed
+                    await clearPersistedState();
+                    handleTimerComplete(activeTimer.timerState, activeTimer.sessionsCompleted);
+                    setIsInitialized(true);
+                    return;
+                }
+            }
+
+            // Fallback to checking AsyncStorage directly
             const persistedState = await loadPersistedState();
 
             if (persistedState && persistedState.isRunning) {
@@ -261,6 +286,9 @@ export default function PomodoroTimer({
                     setSessionsCompleted(persistedState.sessionsCompleted);
                     setTimeLeft(remaining);
                     setIsRunning(true);
+                    if (persistedState.notificationId) {
+                        setNotificationId(persistedState.notificationId);
+                    }
                 } else {
                     // Timer would have completed while app was closed
                     await clearPersistedState();
@@ -274,16 +302,15 @@ export default function PomodoroTimer({
         };
 
         initialize();
-    }, [loadPersistedState, clearPersistedState, handleTimerComplete]);
+    }, []);
 
     // Cleanup notification on unmount
     useEffect(() => {
         return () => {
-            if (notificationId) {
-                cancelNotification(notificationId);
-            }
+            // Don't cancel notification on unmount if timer is still running
+            // The notification should still fire if app is closed
         };
-    }, [notificationId]);
+    }, []);
 
     // Update progress bar
     useEffect(() => {
@@ -307,6 +334,7 @@ export default function PomodoroTimer({
 
         const id = await scheduleNotification(message, finishTime);
         setNotificationId(id);
+        return id;
     }, [notificationId]);
 
     const startTimer = useCallback(async () => {
@@ -318,8 +346,8 @@ export default function PomodoroTimer({
 
         // Haptics and notifications can happen async
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        scheduleTimerNotification(timeLeft, timerState);
-        persistTimerState(true, newEndTime, timerState, sessionsCompleted);
+        const notifId = await scheduleTimerNotification(timeLeft, timerState);
+        persistTimerState(true, newEndTime, timerState, sessionsCompleted, notifId);
     }, [timeLeft, timerState, sessionsCompleted, scheduleTimerNotification, persistTimerState]);
 
     const pauseTimer = useCallback(async () => {
