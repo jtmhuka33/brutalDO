@@ -265,12 +265,22 @@ export default function ZenMode() {
                     { text: "Stay", style: "cancel" },
                     {
                         text: "Leave",
-                        onPress: () => router.back(),
+                        onPress: () => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.replace("/(tabs)/");
+                            }
+                        },
                     },
                 ]
             );
         } else {
-            router.back();
+            if (router.canGoBack()) {
+                router.back();
+            } else {
+                router.replace("/(tabs)/");
+            }
         }
     };
 
