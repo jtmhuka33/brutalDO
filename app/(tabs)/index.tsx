@@ -22,7 +22,7 @@ import {clsx} from "clsx";
 import {twMerge} from "tailwind-merge";
 import * as Notifications from "expo-notifications";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {useNavigation} from "expo-router";
+import {useNavigation, useFocusEffect} from "expo-router";
 import {DrawerActions} from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 
@@ -131,6 +131,15 @@ export default function TodoApp() {
 
         initializeApp();
     }, []);
+
+    // Reload todos when screen comes into focus (e.g., returning from Zen Mode)
+    useFocusEffect(
+        useCallback(() => {
+            if (!isInitialLoad) {
+                loadTodos();
+            }
+        }, [isInitialLoad, loadTodos])
+    );
 
     useEffect(() => {
         if (!isInitialLoad) {
