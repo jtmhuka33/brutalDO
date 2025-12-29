@@ -203,7 +203,7 @@ export default function TodoItem({
         >
             <View className="flex-row items-center justify-between">
                 <TouchableOpacity
-                    onPress={handlePress}
+                    onPress={toggleDatePicker}
                     className="flex-1 flex-col gap-4"
                     activeOpacity={0.7}
                 >
@@ -216,8 +216,9 @@ export default function TodoItem({
                     </View>
                     <View className="flex flex-row">
                         {/* Archive Checkbox */}
-                        <View
+                        <Pressable
                             className="h-10 w-10 border-5 border-black bg-white items-center justify-center shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
+                            onPress={handlePress}
                         >
                             <Ionicons
                                 name="checkmark-sharp"
@@ -225,7 +226,7 @@ export default function TodoItem({
                                 color="#ccc"
                                 style={{ opacity: 0.3 }}
                             />
-                        </View>
+                        </Pressable>
                         <View className="flex-1 gap-1">
                             {/* Badges Row */}
                             <View className="flex-row flex-wrap items-center gap-2 mt-1">
@@ -301,28 +302,6 @@ export default function TodoItem({
                         </View>
                         {/* Action Buttons */}
                         <View className="flex-row gap-3">
-                            <Pressable
-                                onPress={toggleDatePicker}
-                                className={cn(
-                                    "h-11 w-11 items-center justify-center border-5 border-black shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
-                                    item.reminderDate || item.dueDate || hasRecurrence
-                                        ? "bg-neo-green"
-                                        : "bg-neo-accent"
-                                )}
-                            >
-                                <Ionicons
-                                    name={
-                                        hasRecurrence
-                                            ? "repeat-sharp"
-                                            : item.reminderDate || item.dueDate
-                                                ? "calendar-sharp"
-                                                : "alarm-sharp"
-                                    }
-                                    size={20}
-                                    color="black"
-                                />
-                            </Pressable>
-
                             <Pressable
                                 onPress={handleEditPress}
                                 className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-secondary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
