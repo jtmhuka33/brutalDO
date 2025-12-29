@@ -227,9 +227,9 @@ export default function TodoItem({
                                 style={{ opacity: 0.3 }}
                             />
                         </Pressable>
-                        <View className="flex-1 gap-1">
+                        <View className="flex-1 gap-1 mx-auto">
                             {/* Badges Row */}
-                            <View className="flex-row flex-wrap items-center gap-2 mt-1">
+                            <View className="flex-row flex-wrap mx-3 items-center gap-2 mt-1">
                                 {/* Due Date Badge - with priority colors */}
                                 {item.dueDate && (
                                     <View
