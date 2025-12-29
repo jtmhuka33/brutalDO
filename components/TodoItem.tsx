@@ -209,7 +209,7 @@ export default function TodoItem({
                 >
                     <View>
                         <Text
-                            className="text-xl font-black uppercase tracking-tight text-black dark:text-black"
+                            className="text-md font-black uppercase tracking-tight text-black dark:text-black"
                         >
                             {item.text}
                         </Text>
