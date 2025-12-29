@@ -192,11 +192,12 @@ export default function TodoApp() {
         } else {
             const newTodo: Todo = {
                 id: Date.now().toString(),
-                text: text.trim(),
+                text: text.trim().toUpperCase(),
                 completed: false,
                 colorVariant: Math.floor(Math.random() * CARD_COLORS_COUNT),
                 listId: selectedListId,
             };
+            console.log(newTodo.text)
             setTodos((prev) => [newTodo, ...prev]);
         }
         setText("");
