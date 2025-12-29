@@ -28,7 +28,7 @@ const SORT_OPTIONS: SortOption[] = [
 ];
 
 const SORT_DESCRIPTIONS: Record<SortType, string> = {
-    DEFAULT: "Overdue → Today → Tomorrow → Future",
+    DEFAULT: "Overdue → Today → ETC.",
     DUE_ASC: "Earliest due date first",
     DUE_DESC: "Latest due date first",
     ALPHA_ASC: "Alphabetical A to Z",
