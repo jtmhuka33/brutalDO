@@ -31,7 +31,7 @@ import * as Haptics from "expo-haptics";
 import TodoItem from "@/components/TodoItem";
 import ArchiveButton from "@/components/ArchiveButton";
 import ArchiveModal from "@/components/ArchiveModal";
-import {SortType, Todo} from "@/types/todo";
+import {SortType, Todo, Subtask} from "@/types/todo";
 import {RecurrencePattern} from "@/types/recurrence";
 import {DEFAULT_LIST_ID} from "@/types/todoList";
 import {useTodoList} from "@/context/TodoListContext";
@@ -245,6 +245,46 @@ export default function TodoApp() {
         }
         setText("");
     }, [text, editingId, selectedListId]);
+
+    const handleAddSubtask = useCallback((todoId: string, text: string) => {
+        const newSubtask: Subtask = {
+            id: Date.now().toString(),
+            text,
+            completed: false,
+        };
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === todoId
+                    ? { ...t, subtasks: [...(t.subtasks || []), newSubtask] }
+                    : t
+            )
+        );
+    }, []);
+
+    const handleToggleSubtask = useCallback((todoId: string, subtaskId: string) => {
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === todoId
+                    ? {
+                        ...t,
+                        subtasks: (t.subtasks || []).map((s) =>
+                            s.id === subtaskId ? { ...s, completed: !s.completed } : s
+                        ),
+                    }
+                    : t
+            )
+        );
+    }, []);
+
+    const handleDeleteSubtask = useCallback((todoId: string, subtaskId: string) => {
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === todoId
+                    ? { ...t, subtasks: (t.subtasks || []).filter((s) => s.id !== subtaskId) }
+                    : t
+            )
+        );
+    }, []);
 
     const archiveTodo = useCallback(
         async (id: string) => {
@@ -487,6 +527,9 @@ export default function TodoApp() {
                 onClearDueDate={handleClearDueDate}
                 onSetRecurrence={handleSetRecurrence}
                 onClearRecurrence={handleClearRecurrence}
+                onAddSubtask={handleAddSubtask}
+                onToggleSubtask={handleToggleSubtask}
+                onDeleteSubtask={handleDeleteSubtask}
             />
         ),
         [
@@ -499,6 +542,9 @@ export default function TodoApp() {
             handleClearDueDate,
             handleSetRecurrence,
             handleClearRecurrence,
+            handleAddSubtask,
+            handleToggleSubtask,
+            handleDeleteSubtask,
         ]
     );
 

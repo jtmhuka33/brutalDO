@@ -15,6 +15,7 @@ import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import * as Haptics from "expo-haptics";
 import DatePickerPanel from "./DatePickerPanel";
+import SubtaskList from "./SubTaskList";
 import { Todo } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import { getRecurrenceShortLabel, isRecurrenceActive } from "@/utils/recurrence";
@@ -50,6 +51,9 @@ interface TodoItemProps {
     onClearDueDate: (id: string) => void;
     onSetRecurrence: (id: string, pattern: RecurrencePattern) => void;
     onClearRecurrence: (id: string) => void;
+    onAddSubtask: (id: string, text: string) => void;
+    onToggleSubtask: (id: string, subtaskId: string) => void;
+    onDeleteSubtask: (id: string, subtaskId: string) => void;
 }
 
 const getDatePriority = (dueDate: string): number => {
@@ -77,9 +81,13 @@ export default function TodoItem({
                                      onClearDueDate,
                                      onSetRecurrence,
                                      onClearRecurrence,
+                                     onAddSubtask,
+                                     onToggleSubtask,
+                                     onDeleteSubtask,
                                  }: TodoItemProps) {
     const colorClass = CARD_COLORS[item.colorVariant ?? index % CARD_COLORS.length];
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showSubtasks, setShowSubtasks] = useState(false);
     const { isBulkMode, selectedIds, toggleSelection } = useBulkEdit();
 
     const isSelected = selectedIds.has(item.id);
@@ -147,9 +155,33 @@ export default function TodoItem({
         onClearRecurrence(item.id);
     }, [onClearRecurrence, item.id]);
 
+    const handleAddSubtask = useCallback(
+        (text: string) => onAddSubtask(item.id, text),
+        [onAddSubtask, item.id]
+    );
+
+    const handleToggleSubtask = useCallback(
+        (subtaskId: string) => onToggleSubtask(item.id, subtaskId),
+        [onToggleSubtask, item.id]
+    );
+
+    const handleDeleteSubtask = useCallback(
+        (subtaskId: string) => onDeleteSubtask(item.id, subtaskId),
+        [onDeleteSubtask, item.id]
+    );
+
     const toggleDatePicker = useCallback(() => {
         if (!isBulkMode) {
             setShowDatePicker((prev) => !prev);
+            setShowSubtasks(false);
+        }
+    }, [isBulkMode]);
+
+    const toggleSubtasks = useCallback(async () => {
+        if (!isBulkMode) {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowSubtasks((prev) => !prev);
+            setShowDatePicker(false);
         }
     }, [isBulkMode]);
 
@@ -170,6 +202,9 @@ export default function TodoItem({
     const isDueDateToday = (dateString: string) => getDatePriority(dateString) === 1;
     const isDueDateTomorrow = (dateString: string) => getDatePriority(dateString) === 2;
     const hasRecurrence = isRecurrenceActive(item.recurrence);
+    const subtasks = item.subtasks || [];
+    const subtaskCount = subtasks.length;
+    const completedSubtasks = subtasks.filter((s) => s.completed).length;
 
     return (
         <Animated.View
@@ -273,7 +308,19 @@ export default function TodoItem({
                                         <Ionicons name="alarm-sharp" size={12} color="black" />
                                     </View>
                                 )}
-                                {!item.dueDate && !hasRecurrence && (
+                                {/* Subtask badge */}
+                                {subtaskCount > 0 && (
+                                    <Pressable
+                                        onPress={toggleSubtasks}
+                                        className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-secondary"
+                                    >
+                                        <Ionicons name="list-sharp" size={12} color="black" />
+                                        <Text className="text-xs font-black text-black">
+                                            {completedSubtasks}/{subtaskCount}
+                                        </Text>
+                                    </Pressable>
+                                )}
+                                {!item.dueDate && !hasRecurrence && subtaskCount === 0 && (
                                     <View className="flex-row mx-auto gap-1 opacity-50">
                                         <Ionicons name="calendar-outline" size={12} color="#666" />
                                         <Text className="text-xs font-black uppercase tracking-tight text-gray-600 dark:text-gray-600">
@@ -286,6 +333,20 @@ export default function TodoItem({
                         {/* Action Buttons - hidden in bulk mode */}
                         {!isBulkMode && (
                             <View className="flex-row gap-3">
+                                {/* Subtasks button */}
+                                <Pressable
+                                    onPress={toggleSubtasks}
+                                    className={cn(
+                                        "h-11 w-11 items-center justify-center border-5 border-black shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
+                                        showSubtasks ? "bg-neo-green" : "bg-white dark:bg-neo-dark-surface"
+                                    )}
+                                >
+                                    <Ionicons
+                                        name="list-sharp"
+                                        size={20}
+                                        color={showSubtasks ? "black" : "#FF0055"}
+                                    />
+                                </Pressable>
                                 <Pressable
                                     onPress={handleEditPress}
                                     className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-secondary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
@@ -303,6 +364,17 @@ export default function TodoItem({
                     </View>
                 </TouchableOpacity>
             </View>
+
+            {/* Subtasks Panel */}
+            {showSubtasks && !isBulkMode && (
+                <SubtaskList
+                    subtasks={subtasks}
+                    onAddSubtask={handleAddSubtask}
+                    onToggleSubtask={handleToggleSubtask}
+                    onDeleteSubtask={handleDeleteSubtask}
+                />
+            )}
+
             {showDatePicker && !isBulkMode && (
                 <DatePickerPanel
                     reminderDate={item.reminderDate}

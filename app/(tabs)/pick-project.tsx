@@ -11,7 +11,6 @@ import {clsx} from "clsx";
 
 import {useTodoList} from "@/context/TodoListContext";
 import {useBulkEdit} from "@/context/BulkEditContext";
-import {DEFAULT_LIST_ID} from "@/types/todoList";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -35,7 +34,7 @@ export default function PickProjectScreen() {
         if (router.canGoBack()) {
             router.back();
         } else {
-            router.replace("/(tabs)/");
+            router.replace("/(tabs)");
         }
     }, []);
 
@@ -61,7 +60,7 @@ export default function PickProjectScreen() {
                         onPress: async () => {
                             await moveTasks(targetListId);
                             exitBulkMode();
-                            router.replace("/(tabs)/");
+                            router.replace("/(tabs)");
                         },
                     },
                 ]
@@ -136,7 +135,6 @@ export default function PickProjectScreen() {
                 ) : (
                     availableLists.map((list, index) => {
                         const colorClass = LIST_COLORS[list.colorVariant ?? index % LIST_COLORS.length];
-                        const isDefault = list.id === DEFAULT_LIST_ID;
 
                         return (
                             <Animated.View
@@ -155,7 +153,7 @@ export default function PickProjectScreen() {
                                     <View
                                         className="h-12 w-12 items-center justify-center border-4 border-black bg-white dark:border-neo-primary dark:bg-neo-dark">
                                         <Ionicons
-                                            name={isDefault ? "filing-sharp" : "folder-sharp"}
+                                            name={"folder-sharp"}
                                             size={24}
                                             color="#FF0055"
                                         />

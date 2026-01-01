@@ -1,5 +1,11 @@
 import { RecurrencePattern } from "./recurrence";
 
+export interface Subtask {
+    id: string;
+    text: string;
+    completed: boolean;
+}
+
 export interface Todo {
     id: string;
     text: string;
@@ -12,8 +18,9 @@ export interface Todo {
     archivedAt?: string;
     recurrence?: RecurrencePattern;
     isRecurring?: boolean;
-    parentRecurrenceId?: string; // Links to the original recurring task
-    recurrenceCount?: number; // How many times this task has recurred
+    parentRecurrenceId?: string;
+    recurrenceCount?: number;
+    subtasks?: Subtask[];
 }
 
 export type SortType = "DEFAULT" | "ALPHA_ASC" | "ALPHA_DESC" | "DUE_ASC" | "DUE_DESC";
