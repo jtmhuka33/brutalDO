@@ -17,6 +17,7 @@ import {
 import { TodoListProvider } from "@/context/TodoListContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { PomodoroProvider, usePomodoro } from "@/context/PomodoroContext";
+import { BulkEditProvider } from "@/context/BulkEditContext";
 import ProjectDrawer from "@/components/ProjectDrawer";
 
 configureReanimatedLogger({
@@ -41,18 +42,15 @@ function NavigationContent() {
     const { activeTimer, isCheckingTimer } = usePomodoro();
     const [hasNavigated, setHasNavigated] = useState(false);
 
-    // Navigate to zen mode if there's an active timer
     useEffect(() => {
         if (!isCheckingTimer && activeTimer && !hasNavigated) {
             setHasNavigated(true);
-            // Small delay to ensure navigation is ready
             setTimeout(() => {
                 router.replace("/(tabs)/zen");
             }, 100);
         }
     }, [isCheckingTimer, activeTimer, hasNavigated]);
 
-    // Show nothing while checking (brief moment)
     if (isCheckingTimer) {
         return null;
     }
@@ -103,14 +101,16 @@ export default function RootLayout() {
             <TodoListProvider>
                 <ToastProvider>
                     <PomodoroProvider>
-                        <View
-                            style={{
-                                flex: 1,
-                                backgroundColor: theme.background,
-                            }}
-                        >
-                            <NavigationContent />
-                        </View>
+                        <BulkEditProvider>
+                            <View
+                                style={{
+                                    flex: 1,
+                                    backgroundColor: theme.background,
+                                }}
+                            >
+                                <NavigationContent />
+                            </View>
+                        </BulkEditProvider>
                     </PomodoroProvider>
                 </ToastProvider>
             </TodoListProvider>

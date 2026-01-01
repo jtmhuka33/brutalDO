@@ -2,6 +2,8 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import UndoToast from "@/components/UndoToast";
 import {useToast} from "@/context/ToastContext";
 import ZenModeButton from "@/components/ZenModeButton";
+import BulkEditButton from "@/components/BulkEditButton";
+import BulkActionBar from "@/components/BulkActionBar";
 import {
     Alert,
     FlatList,
@@ -33,6 +35,7 @@ import {SortType, Todo} from "@/types/todo";
 import {RecurrencePattern} from "@/types/recurrence";
 import {DEFAULT_LIST_ID} from "@/types/todoList";
 import {useTodoList} from "@/context/TodoListContext";
+import {useBulkEdit} from "@/context/BulkEditContext";
 import {cancelNotification, registerForPushNotificationsAsync, scheduleNotification,} from "@/utils/notifications";
 import {createNextRecurringTodo, isRecurrenceActive} from "@/utils/recurrence";
 import SortSelector from "@/components/SortSelector";
@@ -58,7 +61,7 @@ export default function TodoApp() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<SortType>("DEFAULT");
     const [showArchive, setShowArchive] = useState(false);
-    const [isInitialLoad, setIsInitialLoad] = useState(true)
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const colorScheme = useColorScheme();
     const notificationListener = useRef<Notifications.EventSubscription>();
     const responseListener = useRef<Notifications.EventSubscription>();
@@ -68,6 +71,17 @@ export default function TodoApp() {
     const inputRef = useRef<TextInput>(null);
 
     const { selectedListId, selectedList } = useTodoList();
+    const {
+        isBulkMode,
+        selectedIds,
+        enterBulkMode,
+        exitBulkMode,
+        selectAll,
+        deselectAll,
+        deleteTasks,
+        setTodosRef,
+    } = useBulkEdit();
+    console.log("Is Bulk", isBulkMode)
 
     const buttonScale = useSharedValue(1);
     const menuScale = useSharedValue(1);
@@ -80,7 +94,18 @@ export default function TodoApp() {
         transform: [{ scale: menuScale.value }],
     }));
 
-    // Initialize notifications
+    // Keep bulk edit context in sync with todos
+    useEffect(() => {
+        setTodosRef(todos, setTodos);
+    }, [todos, setTodosRef, setTodos]);
+
+    // Exit bulk mode when switching lists
+    useEffect(() => {
+        if (isBulkMode) {
+            exitBulkMode();
+        }
+    }, [selectedListId]);
+
     useEffect(() => {
         registerForPushNotificationsAsync();
 
@@ -128,11 +153,9 @@ export default function TodoApp() {
             await loadSortPreference();
             setIsInitialLoad(false);
         };
-
         initializeApp();
     }, []);
 
-    // Reload todos when screen comes into focus (e.g., returning from Zen Mode)
     useFocusEffect(
         useCallback(() => {
             if (!isInitialLoad) {
@@ -173,6 +196,28 @@ export default function TodoApp() {
         navigation.dispatch(DrawerActions.openDrawer());
     }, [navigation]);
 
+    const handleToggleBulkMode = useCallback(() => {
+        if (isBulkMode) {
+            exitBulkMode();
+        } else {
+            enterBulkMode();
+        }
+    }, [isBulkMode, enterBulkMode, exitBulkMode]);
+
+    const handleBulkDelete = useCallback(async () => {
+        const deletedTodos = await deleteTasks();
+        exitBulkMode();
+
+        if (deletedTodos.length > 0) {
+            showDeleteToast(
+                deletedTodos[0],
+                `${deletedTodos.length} task${deletedTodos.length > 1 ? "s" : ""} deleted`
+            );
+        }
+
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }, [deleteTasks, exitBulkMode, showDeleteToast]);
+
     const handleAddOrUpdate = useCallback(() => {
         if (!text.trim()) return;
 
@@ -197,19 +242,16 @@ export default function TodoApp() {
                 colorVariant: Math.floor(Math.random() * CARD_COLORS_COUNT),
                 listId: selectedListId,
             };
-            console.log(newTodo.text)
             setTodos((prev) => [newTodo, ...prev]);
         }
         setText("");
     }, [text, editingId, selectedListId]);
 
-    // Archive a task (complete and move to archive)
     const archiveTodo = useCallback(
         async (id: string) => {
             const todo = todos.find((t) => t.id === id);
             if (!todo) return;
 
-            // If this is a recurring task, create the next occurrence
             if (!todo.completed && isRecurrenceActive(todo.recurrence)) {
                 const nextTodo = createNextRecurringTodo(
                     todo,
@@ -217,9 +259,7 @@ export default function TodoApp() {
                 );
 
                 if (nextTodo) {
-                    await Haptics.notificationAsync(
-                        Haptics.NotificationFeedbackType.Success
-                    );
+                    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
                     setTodos((prev) => {
                         const updated = prev.map((t) =>
@@ -245,7 +285,6 @@ export default function TodoApp() {
                 }
             }
 
-            // Normal archive
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setTodos((prev) =>
                 prev.map((t) =>
@@ -258,14 +297,11 @@ export default function TodoApp() {
         [todos]
     );
 
-    // Restore a task from archive
     const restoreTodo = useCallback(async (id: string) => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setTodos((prev) =>
             prev.map((t) =>
-                t.id === id
-                    ? { ...t, completed: false, archivedAt: undefined }
-                    : t
+                t.id === id ? { ...t, completed: false, archivedAt: undefined } : t
             )
         );
     }, []);
@@ -275,15 +311,11 @@ export default function TodoApp() {
             const todo = todos.find((t) => t.id === id);
             if (!todo) return;
 
-            // Cancel notification if exists
             if (todo.notificationId) {
                 await cancelNotification(todo.notificationId);
             }
 
-            // Remove from list
             setTodos((prev) => prev.filter((t) => t.id !== id));
-
-            // Show undo toast
             showDeleteToast(todo);
         },
         [todos, showDeleteToast]
@@ -293,18 +325,14 @@ export default function TodoApp() {
         const deletedTodo = toast.deletedTodo;
         if (deletedTodo) {
             setTodos((prev) => {
-                // Check if already exists (prevent duplicates)
                 if (prev.some((t) => t.id === deletedTodo.id)) {
                     return prev;
                 }
-                // Add back to the list in original position based on ID
-                // Re-sort to maintain order
                 return [...prev, deletedTodo];
             });
         }
     }, [toast.deletedTodo]);
 
-    // Clear all archived items
     const clearAllArchived = useCallback(() => {
         setTodos((prev) => prev.filter((t) => !t.archivedAt));
     }, []);
@@ -312,7 +340,6 @@ export default function TodoApp() {
     const startEditing = useCallback((todo: Todo) => {
         setText(todo.text);
         setEditingId(todo.id);
-        // Focus the input when editing
         setTimeout(() => inputRef.current?.focus(), 100);
     }, []);
 
@@ -322,9 +349,7 @@ export default function TodoApp() {
             if (!todo) return;
 
             if (date <= new Date()) {
-                Alert.alert("Invalid Time", "Please select a time in the future.", [
-                    { text: "OK" },
-                ]);
+                Alert.alert("Invalid Time", "Please select a time in the future.", [{ text: "OK" }]);
                 return;
             }
 
@@ -336,13 +361,7 @@ export default function TodoApp() {
 
             setTodos((prev) =>
                 prev.map((t) =>
-                    t.id === id
-                        ? {
-                            ...t,
-                            reminderDate: date.toISOString(),
-                            notificationId,
-                        }
-                        : t
+                    t.id === id ? { ...t, reminderDate: date.toISOString(), notificationId } : t
                 )
             );
         },
@@ -358,13 +377,7 @@ export default function TodoApp() {
 
             setTodos((prev) =>
                 prev.map((t) =>
-                    t.id === id
-                        ? {
-                            ...t,
-                            reminderDate: undefined,
-                            notificationId: undefined,
-                        }
-                        : t
+                    t.id === id ? { ...t, reminderDate: undefined, notificationId: undefined } : t
                 )
             );
         },
@@ -376,99 +389,57 @@ export default function TodoApp() {
         dueDate.setHours(23, 59, 59, 999);
 
         setTodos((prev) =>
-            prev.map((t) =>
-                t.id === id
-                    ? {
-                        ...t,
-                        dueDate: dueDate.toISOString(),
-                    }
-                    : t
-            )
+            prev.map((t) => (t.id === id ? { ...t, dueDate: dueDate.toISOString() } : t))
         );
     }, []);
 
     const handleClearDueDate = useCallback((id: string) => {
+        setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, dueDate: undefined } : t)));
+    }, []);
+
+    const handleSetRecurrence = useCallback((id: string, pattern: RecurrencePattern) => {
         setTodos((prev) =>
             prev.map((t) =>
-                t.id === id
-                    ? {
-                        ...t,
-                        dueDate: undefined,
-                    }
-                    : t
+                t.id === id ? { ...t, recurrence: pattern, isRecurring: pattern.type !== "none" } : t
             )
         );
     }, []);
-
-    const handleSetRecurrence = useCallback(
-        (id: string, pattern: RecurrencePattern) => {
-            setTodos((prev) =>
-                prev.map((t) =>
-                    t.id === id
-                        ? {
-                            ...t,
-                            recurrence: pattern,
-                            isRecurring: pattern.type !== "none",
-                        }
-                        : t
-                )
-            );
-        },
-        []
-    );
 
     const handleClearRecurrence = useCallback((id: string) => {
         setTodos((prev) =>
-            prev.map((t) =>
-                t.id === id
-                    ? {
-                        ...t,
-                        recurrence: undefined,
-                        isRecurring: false,
-                    }
-                    : t
-            )
+            prev.map((t) => (t.id === id ? { ...t, recurrence: undefined, isRecurring: false } : t))
         );
     }, []);
 
-    // Helper function to get date priority for sorting
     const getDatePriority = (todo: Todo): number => {
-        if (!todo.dueDate) return 4; // No due date - lowest priority
-
+        if (!todo.dueDate) return 4;
         const dueDate = new Date(todo.dueDate);
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-
         const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-        if (diffDays < 0) return 0; // Overdue - highest priority
-        if (diffDays === 0) return 1; // Today
-        if (diffDays === 1) return 2; // Tomorrow
-        return 3; // Future
+        if (diffDays < 0) return 0;
+        if (diffDays === 0) return 1;
+        if (diffDays === 1) return 2;
+        return 3;
     };
 
-    // Filter and sort todos
     const { activeTodos, archivedTodos } = useMemo(() => {
-        // Filter by list
         const listFiltered = todos.filter((t) => {
             const todoListId = t.listId || DEFAULT_LIST_ID;
             return todoListId === selectedListId;
         });
 
-        // Separate active and archived
         const active = listFiltered.filter((t) => !t.archivedAt);
         const archived = listFiltered.filter((t) => t.archivedAt);
 
-        // Sort active todos
         const sortedActive = active.sort((a, b) => {
             switch (sortBy) {
                 case "ALPHA_ASC":
                     return a.text.localeCompare(b.text, undefined, { sensitivity: "base" });
-
                 case "ALPHA_DESC":
                     return b.text.localeCompare(a.text, undefined, { sensitivity: "base" });
-
                 case "DUE_ASC":
                     if (a.dueDate && b.dueDate) {
                         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
@@ -476,7 +447,6 @@ export default function TodoApp() {
                     if (a.dueDate && !b.dueDate) return -1;
                     if (!a.dueDate && b.dueDate) return 1;
                     return parseInt(b.id) - parseInt(a.id);
-
                 case "DUE_DESC":
                     if (a.dueDate && b.dueDate) {
                         return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
@@ -484,32 +454,25 @@ export default function TodoApp() {
                     if (a.dueDate && !b.dueDate) return -1;
                     if (!a.dueDate && b.dueDate) return 1;
                     return parseInt(b.id) - parseInt(a.id);
-
                 case "DEFAULT":
                 default:
-                    // Smart sorting: Overdue > Today > Tomorrow > Future > No date
                     const priorityA = getDatePriority(a);
                     const priorityB = getDatePriority(b);
-
-                    if (priorityA !== priorityB) {
-                        return priorityA - priorityB;
-                    }
-
-                    // Within same priority, sort by actual date
+                    if (priorityA !== priorityB) return priorityA - priorityB;
                     if (a.dueDate && b.dueDate) {
                         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
                     }
-
-                    // If no due dates, sort by creation (newest first)
                     return parseInt(b.id) - parseInt(a.id);
             }
         });
 
-        return {
-            activeTodos: sortedActive,
-            archivedTodos: archived,
-        };
+        return { activeTodos: sortedActive, archivedTodos: archived };
     }, [todos, selectedListId, sortBy]);
+
+    const handleSelectAll = useCallback(() => {
+        const allIds = activeTodos.map((t) => t.id);
+        selectAll(allIds);
+    }, [activeTodos, selectAll]);
 
     const renderTodoItem = useCallback(
         ({ item, index }: { item: Todo; index: number }) => (
@@ -543,16 +506,13 @@ export default function TodoApp() {
     const keyExtractor = useCallback((item: Todo) => item.id, []);
 
     const ListFooterComponent = useMemo(() => {
-        if (archivedTodos.length === 0) return null;
+        if (archivedTodos.length === 0 || isBulkMode) return null;
         return (
             <View className="mt-4">
-                <ArchiveButton
-                    count={archivedTodos.length}
-                    onPress={() => setShowArchive(true)}
-                />
+                <ArchiveButton count={archivedTodos.length} onPress={() => setShowArchive(true)} />
             </View>
         );
-    }, [archivedTodos.length]);
+    }, [archivedTodos.length, isBulkMode]);
 
     const handleScrollBeginDrag = useCallback(() => {
         Keyboard.dismiss();
@@ -562,12 +522,11 @@ export default function TodoApp() {
         <View className="flex-1 bg-neo-bg px-6 pt-8 dark:bg-neo-dark">
             <StatusBar style="auto" />
 
-            {/* Header with Menu Button */}
+            {/* Header */}
             <Animated.View
                 entering={FadeIn.duration(300).easing(Easing.out(Easing.quad))}
                 className="mb-6 flex flex-row items-center justify-between"
             >
-                {/* Menu Button */}
                 <Animated.View style={menuAnimatedStyle}>
                     <Pressable
                         onPress={handleOpenDrawer}
@@ -581,7 +540,6 @@ export default function TodoApp() {
                     </Pressable>
                 </Animated.View>
 
-                {/* Title - Now shows current list name */}
                 <View className="flex-1 flex-row items-center gap-3">
                     <Text
                         className="text-3xl font-black uppercase tracking-tighter text-black dark:text-white leading-tight"
@@ -591,53 +549,64 @@ export default function TodoApp() {
                     </Text>
                 </View>
 
+                {/* Bulk Edit Button */}
+                <BulkEditButton
+                    isActive={isBulkMode}
+                    onToggle={handleToggleBulkMode}
+                    selectedCount={selectedIds.size}
+                />
+
                 {/* Zen Mode Button */}
                 <ZenModeButton />
             </Animated.View>
 
-            {/* Sort Selector */}
-            <SortSelector activeSort={sortBy} onSortChange={handleSortChange} />
-
-            {/* Input Area */}
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                className="mb-8 flex-row gap-4"
-            >
-                <TextInput
-                    ref={inputRef}
-                    value={text}
-                    onChangeText={setText}
-                    placeholder={
-                        editingId ? "EDIT TASK..." : "WHAT'S THE TASK?!"
-                    }
-                    placeholderTextColor={
-                        colorScheme === "dark" ? "#666" : "#999"
-                    }
-                    className="flex-1 border-5 border-black bg-white p-5 font-black text-lg text-black shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white dark:shadow-brutal-dark uppercase"
-                    returnKeyType="done"
-                    onSubmitEditing={handleAddOrUpdate}
-                    submitBehavior="blurAndSubmit"
+            {/* Sort Selector OR Bulk Action Bar */}
+            {isBulkMode ? (
+                <BulkActionBar
+                    selectedCount={selectedIds.size}
+                    onDelete={handleBulkDelete}
+                    onSelectAll={handleSelectAll}
+                    onDeselectAll={deselectAll}
+                    totalCount={activeTodos.length}
                 />
-                <AnimatedPressable
-                    onPress={handleAddOrUpdate}
-                    style={buttonAnimatedStyle}
-                    className={cn(
-                        "items-center justify-center border-5 border-black px-7 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                        editingId ? "bg-neo-secondary" : "bg-neo-accent"
-                    )}
+            ) : (
+                <SortSelector activeSort={sortBy} onSortChange={handleSortChange} />
+            )}
+
+            {/* Input Area - hidden in bulk mode */}
+            {!isBulkMode && (
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    className="mb-8 flex-row gap-4"
                 >
-                    <Ionicons
-                        name={editingId ? "save-sharp" : "add-sharp"}
-                        size={36}
-                        color="black"
+                    <TextInput
+                        ref={inputRef}
+                        value={text}
+                        onChangeText={setText}
+                        placeholder={editingId ? "EDIT TASK..." : "WHAT'S THE TASK?!"}
+                        placeholderTextColor={colorScheme === "dark" ? "#666" : "#999"}
+                        className="flex-1 border-5 border-black bg-white p-5 font-black text-lg text-black shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white dark:shadow-brutal-dark uppercase"
+                        returnKeyType="done"
+                        onSubmitEditing={handleAddOrUpdate}
+                        submitBehavior="blurAndSubmit"
                     />
-                </AnimatedPressable>
-            </KeyboardAvoidingView>
+                    <AnimatedPressable
+                        onPress={handleAddOrUpdate}
+                        style={buttonAnimatedStyle}
+                        className={cn(
+                            "items-center justify-center border-5 border-black px-7 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
+                            editingId ? "bg-neo-secondary" : "bg-neo-accent"
+                        )}
+                    >
+                        <Ionicons name={editingId ? "save-sharp" : "add-sharp"} size={36} color="black" />
+                    </AnimatedPressable>
+                </KeyboardAvoidingView>
+            )}
 
             {/* List */}
             <FlatList
                 data={activeTodos}
-                extraData={sortBy}
+                extraData={[sortBy, isBulkMode, selectedIds]}
                 keyExtractor={keyExtractor}
                 renderItem={renderTodoItem}
                 contentContainerStyle={{
@@ -663,7 +632,6 @@ export default function TodoApp() {
                 }
             />
 
-            {/* Archive Modal */}
             <ArchiveModal
                 visible={showArchive}
                 onClose={() => setShowArchive(false)}

@@ -27,6 +27,7 @@ export default function TabsLayout() {
             >
                 <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen name="zen" options={{ headerShown: false }} />
+                <Stack.Screen name="pick-project" options={{ headerShown: false }} />
             </Stack>
         </View>
     );

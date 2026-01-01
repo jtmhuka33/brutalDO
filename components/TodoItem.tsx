@@ -1,4 +1,3 @@
-// components/TodoItem.tsx
 import React, { useCallback, useState } from "react";
 import { View, Text, TouchableOpacity, Pressable } from "react-native";
 import Animated, {
@@ -14,23 +13,24 @@ import Animated, {
 import { Ionicons } from "@expo/vector-icons";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
+import * as Haptics from "expo-haptics";
 import DatePickerPanel from "./DatePickerPanel";
 import { Todo } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import { getRecurrenceShortLabel, isRecurrenceActive } from "@/utils/recurrence";
+import { useBulkEdit } from "@/context/BulkEditContext";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
 }
 
-// More varied, vibrant card colors
 const CARD_COLORS = [
-    "bg-neo-accent dark:bg-neo-accent", // Yellow
-    "bg-neo-secondary dark:bg-neo-secondary", // Cyan
-    "bg-neo-primary dark:bg-neo-primary", // Neon Pink
-    "bg-neo-purple dark:bg-neo-purple", // Electric Purple
-    "bg-neo-green dark:bg-neo-green", // Matrix Green
-    "bg-neo-orange dark:bg-neo-orange", // Vivid Orange
+    "bg-neo-accent dark:bg-neo-accent",
+    "bg-neo-secondary dark:bg-neo-secondary",
+    "bg-neo-primary dark:bg-neo-primary",
+    "bg-neo-purple dark:bg-neo-purple",
+    "bg-neo-green dark:bg-neo-green",
+    "bg-neo-orange dark:bg-neo-orange",
 ];
 
 const TIMING_CONFIG_FAST = {
@@ -52,19 +52,17 @@ interface TodoItemProps {
     onClearRecurrence: (id: string) => void;
 }
 
-// Helper function to get date priority
 const getDatePriority = (dueDate: string): number => {
     const date = new Date(dueDate);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const dueDateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
     const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return 0; // Overdue
-    if (diffDays === 0) return 1; // Today
-    if (diffDays === 1) return 2; // Tomorrow
-    return 3; // Future
+    if (diffDays < 0) return 0;
+    if (diffDays === 0) return 1;
+    if (diffDays === 1) return 2;
+    return 3;
 };
 
 export default function TodoItem({
@@ -82,6 +80,9 @@ export default function TodoItem({
                                  }: TodoItemProps) {
     const colorClass = CARD_COLORS[item.colorVariant ?? index % CARD_COLORS.length];
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const { isBulkMode, selectedIds, toggleSelection } = useBulkEdit();
+
+    const isSelected = selectedIds.has(item.id);
 
     const scale = useSharedValue(1);
     const opacity = useSharedValue(1);
@@ -99,9 +100,13 @@ export default function TodoItem({
         scale.value = withTiming(0.98, TIMING_CONFIG_FAST, () => {
             scale.value = withTiming(1, TIMING_CONFIG_FAST);
         });
-
         runOnJS(handleToggle)();
     }, [handleToggle]);
+
+    const handleBulkSelect = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        toggleSelection(item.id);
+    }, [toggleSelection, item.id]);
 
     const handleEditPress = useCallback(() => {
         opacity.value = withTiming(0.7, TIMING_CONFIG_FAST, () => {
@@ -116,9 +121,7 @@ export default function TodoItem({
     }, [onDelete, item.id]);
 
     const handleSetReminder = useCallback(
-        (date: Date) => {
-            onSetReminder(item.id, date);
-        },
+        (date: Date) => onSetReminder(item.id, date),
         [onSetReminder, item.id]
     );
 
@@ -127,9 +130,7 @@ export default function TodoItem({
     }, [onClearReminder, item.id]);
 
     const handleSetDueDate = useCallback(
-        (date: Date) => {
-            onSetDueDate(item.id, date);
-        },
+        (date: Date) => onSetDueDate(item.id, date),
         [onSetDueDate, item.id]
     );
 
@@ -138,9 +139,7 @@ export default function TodoItem({
     }, [onClearDueDate, item.id]);
 
     const handleSetRecurrence = useCallback(
-        (pattern: RecurrencePattern) => {
-            onSetRecurrence(item.id, pattern);
-        },
+        (pattern: RecurrencePattern) => onSetRecurrence(item.id, pattern),
         [onSetRecurrence, item.id]
     );
 
@@ -149,42 +148,27 @@ export default function TodoItem({
     }, [onClearRecurrence, item.id]);
 
     const toggleDatePicker = useCallback(() => {
-        setShowDatePicker((prev) => !prev);
-    }, []);
+        if (!isBulkMode) {
+            setShowDatePicker((prev) => !prev);
+        }
+    }, [isBulkMode]);
 
     const formatDueDateBadge = (dateString: string) => {
         const priority = getDatePriority(dateString);
-
         switch (priority) {
-            case 0:
-                return "OVERDUE";
-            case 1:
-                return "TODAY";
-            case 2:
-                return "TOMORROW";
+            case 0: return "OVERDUE";
+            case 1: return "TODAY";
+            case 2: return "TOMORROW";
             default:
-                const date = new Date(dateString);
-                return date
-                    .toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                    })
+                return new Date(dateString)
+                    .toLocaleDateString("en-US", { month: "short", day: "numeric" })
                     .toUpperCase();
         }
     };
 
-    const isDueDateOverdue = (dateString: string) => {
-        return getDatePriority(dateString) === 0;
-    };
-
-    const isDueDateToday = (dateString: string) => {
-        return getDatePriority(dateString) === 1;
-    };
-
-    const isDueDateTomorrow = (dateString: string) => {
-        return getDatePriority(dateString) === 2;
-    };
-
+    const isDueDateOverdue = (dateString: string) => getDatePriority(dateString) === 0;
+    const isDueDateToday = (dateString: string) => getDatePriority(dateString) === 1;
+    const isDueDateTomorrow = (dateString: string) => getDatePriority(dateString) === 2;
     const hasRecurrence = isRecurrenceActive(item.recurrence);
 
     return (
@@ -198,39 +182,50 @@ export default function TodoItem({
                 `${colorClass} border-black dark:border-neo-primary`,
                 "dark:shadow-brutal-dark",
                 index % 3 === 0 && "-rotate-1",
-                index % 3 === 1 && "rotate-1"
+                index % 3 === 1 && "rotate-1",
+                isBulkMode && isSelected && "ring-4 ring-neo-green ring-offset-2"
             )}
         >
             <View className="flex-row items-center justify-between">
                 <TouchableOpacity
-                    onPress={toggleDatePicker}
+                    onPress={isBulkMode ? handleBulkSelect : toggleDatePicker}
                     className="flex-1 flex-col gap-4"
                     activeOpacity={0.7}
                 >
                     <View>
-                        <Text
-                            className="text-md font-black uppercase tracking-tight text-black dark:text-black"
-                        >
+                        <Text className="text-md font-black uppercase tracking-tight text-black dark:text-black">
                             {item.text}
                         </Text>
                     </View>
                     <View className="flex flex-row">
-                        {/* Archive Checkbox */}
-                        <Pressable
-                            className="h-10 w-10 border-5 border-black bg-white items-center justify-center shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
-                            onPress={handlePress}
-                        >
-                            <Ionicons
-                                name="checkmark-sharp"
-                                size={24}
-                                color="#ccc"
-                                style={{ opacity: 0.3 }}
-                            />
-                        </Pressable>
+                        {/* Bulk Select or Archive Checkbox */}
+                        {isBulkMode ? (
+                            <Pressable
+                                className={cn(
+                                    "h-10 w-10 border-5 border-black items-center justify-center shadow-brutal-sm dark:border-neo-primary dark:shadow-brutal-dark-sm",
+                                    isSelected ? "bg-neo-green" : "bg-white dark:bg-neo-dark-surface"
+                                )}
+                                onPress={handleBulkSelect}
+                            >
+                                {isSelected && (
+                                    <Ionicons name="checkmark-sharp" size={24} color="black" />
+                                )}
+                            </Pressable>
+                        ) : (
+                            <Pressable
+                                className="h-10 w-10 border-5 border-black bg-white items-center justify-center shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
+                                onPress={handlePress}
+                            >
+                                <Ionicons
+                                    name="checkmark-sharp"
+                                    size={24}
+                                    color="#ccc"
+                                    style={{ opacity: 0.3 }}
+                                />
+                            </Pressable>
+                        )}
                         <View className="flex-1 gap-1 mx-auto">
-                            {/* Badges Row */}
                             <View className="flex-row flex-wrap mx-3 items-center gap-2 mt-1">
-                                {/* Due Date Badge - with priority colors */}
                                 {item.dueDate && (
                                     <View
                                         className={cn(
@@ -248,8 +243,7 @@ export default function TodoItem({
                                             name="calendar-sharp"
                                             size={12}
                                             color={
-                                                isDueDateOverdue(item.dueDate) ||
-                                                isDueDateToday(item.dueDate)
+                                                isDueDateOverdue(item.dueDate) || isDueDateToday(item.dueDate)
                                                     ? "white"
                                                     : "black"
                                             }
@@ -257,8 +251,7 @@ export default function TodoItem({
                                         <Text
                                             className={cn(
                                                 "text-xs font-black uppercase tracking-tight",
-                                                isDueDateOverdue(item.dueDate) ||
-                                                isDueDateToday(item.dueDate)
+                                                isDueDateOverdue(item.dueDate) || isDueDateToday(item.dueDate)
                                                     ? "text-white"
                                                     : "text-black dark:text-black"
                                             )}
@@ -267,8 +260,6 @@ export default function TodoItem({
                                         </Text>
                                     </View>
                                 )}
-
-                                {/* Recurrence Badge */}
                                 {hasRecurrence && (
                                     <View className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-purple">
                                         <Ionicons name="repeat-sharp" size={12} color="white" />
@@ -277,22 +268,14 @@ export default function TodoItem({
                                         </Text>
                                     </View>
                                 )}
-
-                                {/* Reminder indicator */}
                                 {item.reminderDate && (
                                     <View className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-green">
                                         <Ionicons name="alarm-sharp" size={12} color="black" />
                                     </View>
                                 )}
-
-                                {/* No Due Date indicator */}
                                 {!item.dueDate && !hasRecurrence && (
                                     <View className="flex-row mx-auto gap-1 opacity-50">
-                                        <Ionicons
-                                            name="calendar-outline"
-                                            size={12}
-                                            color="#666"
-                                        />
+                                        <Ionicons name="calendar-outline" size={12} color="#666" />
                                         <Text className="text-xs font-black uppercase tracking-tight text-gray-600 dark:text-gray-600">
                                             NO DUE DATE
                                         </Text>
@@ -300,27 +283,27 @@ export default function TodoItem({
                                 )}
                             </View>
                         </View>
-                        {/* Action Buttons */}
-                        <View className="flex-row gap-3">
-                            <Pressable
-                                onPress={handleEditPress}
-                                className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-secondary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
-                            >
-                                <Ionicons name="pencil-sharp" size={20} color="black" />
-                            </Pressable>
-
-                            <Pressable
-                                onPress={handleDeletePress}
-                                className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
-                            >
-                                <Ionicons name="trash-sharp" size={20} color="white" />
-                            </Pressable>
-                        </View>
+                        {/* Action Buttons - hidden in bulk mode */}
+                        {!isBulkMode && (
+                            <View className="flex-row gap-3">
+                                <Pressable
+                                    onPress={handleEditPress}
+                                    className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-secondary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
+                                >
+                                    <Ionicons name="pencil-sharp" size={20} color="black" />
+                                </Pressable>
+                                <Pressable
+                                    onPress={handleDeletePress}
+                                    className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
+                                >
+                                    <Ionicons name="trash-sharp" size={20} color="white" />
+                                </Pressable>
+                            </View>
+                        )}
                     </View>
                 </TouchableOpacity>
             </View>
-            {/* Date Picker Panel */}
-            {showDatePicker && (
+            {showDatePicker && !isBulkMode && (
                 <DatePickerPanel
                     reminderDate={item.reminderDate}
                     dueDate={item.dueDate}
