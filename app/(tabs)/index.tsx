@@ -637,13 +637,22 @@ export default function TodoApp() {
                     />
                     <AnimatedPressable
                         onPress={handleAddOrUpdate}
+                        disabled={!text.trim()}
                         style={buttonAnimatedStyle}
                         className={cn(
-                            "items-center justify-center border-5 border-black px-7 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                            editingId ? "bg-neo-secondary" : "bg-neo-accent"
+                            "items-center justify-center border-5 border-black px-7 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark",
+                            !text.trim()
+                                ? "bg-gray-300 dark:bg-neo-dark-elevated opacity-50"
+                                : editingId
+                                    ? "bg-neo-secondary active:translate-x-[8px] active:translate-y-[8px] active:shadow-none"
+                                    : "bg-neo-accent active:translate-x-[8px] active:translate-y-[8px] active:shadow-none"
                         )}
                     >
-                        <Ionicons name={editingId ? "save-sharp" : "add-sharp"} size={36} color="black" />
+                        <Ionicons
+                            name={editingId ? "save-sharp" : "add-sharp"}
+                            size={36}
+                            color={!text.trim() ? "#999" : "black"}
+                        />
                     </AnimatedPressable>
                 </KeyboardAvoidingView>
             )}
