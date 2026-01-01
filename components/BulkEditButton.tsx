@@ -11,7 +11,6 @@ interface BulkEditButtonProps {
 
 export default function BulkEditButton({ isActive, onToggle, selectedCount }: BulkEditButtonProps) {
     const handlePress = () => {
-        console.log("Button pressed, calling onToggle");
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onToggle();
     };

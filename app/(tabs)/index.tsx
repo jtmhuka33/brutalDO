@@ -81,7 +81,6 @@ export default function TodoApp() {
         deleteTasks,
         setTodosRef,
     } = useBulkEdit();
-    console.log("Is Bulk", isBulkMode)
 
     const buttonScale = useSharedValue(1);
     const menuScale = useSharedValue(1);
