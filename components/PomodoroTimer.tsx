@@ -8,6 +8,8 @@ import { cancelNotification, scheduleNotification } from "@/utils/notifications"
 import { usePomodoro, PersistedTimerState } from "@/context/PomodoroContext";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
+import { Subtask } from "@/types/todo";
+import SubtaskItem from "./SubTaskItem";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -16,13 +18,16 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 interface PomodoroTimerProps {
     selectedTask: string;
     taskId: string;
+    subtasks: Subtask[];
     onComplete: () => void;
     onCompleteTask: (taskId: string) => void;
+    onToggleSubtask: (subtaskId: string) => void;
+    onBack: () => void;
 }
 
-const WORK_TIME = 25 * 60; // 25 minutes
-const SHORT_BREAK = 5 * 60; // 5 minutes
-const LONG_BREAK = 15 * 60; // 15 minutes
+const WORK_TIME = 25 * 60;
+const SHORT_BREAK = 5 * 60;
+const LONG_BREAK = 15 * 60;
 const TIMER_STORAGE_KEY = "@pomodoro_timer_state";
 
 type TimerState = "work" | "shortBreak" | "longBreak";
@@ -37,7 +42,10 @@ const TIMING_CONFIG = {
 export default function PomodoroTimer({
                                           selectedTask,
                                           taskId,
+                                          subtasks,
                                           onCompleteTask,
+                                          onToggleSubtask,
+                                          onBack,
                                       }: PomodoroTimerProps) {
     const [timeLeft, setTimeLeft] = useState(WORK_TIME);
     const [isRunning, setIsRunning] = useState(false);
@@ -46,14 +54,12 @@ export default function PomodoroTimer({
     const [notificationId, setNotificationId] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 
-    // Store the end time as state instead of ref for reactivity
     const [endTime, setEndTime] = useState<number | null>(null);
 
     const appStateRef = useRef(AppState.currentState);
     const { activeTimer, setActiveTimer, } = usePomodoro();
 
     const scale = useSharedValue(1);
-    const progress = useSharedValue(1);
     const completeButtonScale = useSharedValue(1);
 
     const completeButtonAnimatedStyle = useAnimatedStyle(() => ({
@@ -62,10 +68,6 @@ export default function PomodoroTimer({
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
-    }));
-
-    const progressStyle = useAnimatedStyle(() => ({
-        width: `${progress.value * 100}%`,
     }));
 
     const getTimerDuration = useCallback((state: TimerState): number => {
@@ -79,7 +81,6 @@ export default function PomodoroTimer({
         }
     }, []);
 
-    // Persist timer state to AsyncStorage and context
     const persistTimerState = useCallback(async (
         running: boolean,
         end: number | null,
@@ -111,7 +112,6 @@ export default function PomodoroTimer({
         }
     }, [taskId, selectedTask, setActiveTimer]);
 
-    // Load persisted timer state
     const loadPersistedState = useCallback(async () => {
         try {
             const stored = await AsyncStorage.getItem(TIMER_STORAGE_KEY);
@@ -119,7 +119,6 @@ export default function PomodoroTimer({
 
             const state: PersistedTimerState = JSON.parse(stored);
 
-            // Only restore if it's for the same task
             if (state.taskId !== taskId) {
                 await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
                 setActiveTimer(null);
@@ -133,7 +132,6 @@ export default function PomodoroTimer({
         }
     }, [taskId, setActiveTimer]);
 
-    // Clear persisted state
     const clearPersistedState = useCallback(async () => {
         try {
             await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
@@ -143,7 +141,6 @@ export default function PomodoroTimer({
         }
     }, [setActiveTimer]);
 
-    // Handle timer completion
     const handleTimerComplete = useCallback(async (currentState: TimerState, currentSessions: number) => {
         setEndTime(null);
         setIsRunning(false);
@@ -181,7 +178,6 @@ export default function PomodoroTimer({
             return;
         }
 
-        // Calculate and update time immediately
         const updateTime = () => {
             const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
 
@@ -194,15 +190,12 @@ export default function PomodoroTimer({
             return remaining;
         };
 
-        // Update immediately
         const initialRemaining = updateTime();
 
-        // Don't set interval if already complete
         if (initialRemaining <= 0) {
             return;
         }
 
-        // Set up interval for subsequent updates
         const intervalId = setInterval(() => {
             const remaining = updateTime();
             if (remaining <= 0) {
@@ -210,13 +203,11 @@ export default function PomodoroTimer({
             }
         }, 1000);
 
-        // Cleanup
         return () => {
             clearInterval(intervalId);
         };
     }, [isRunning, endTime, timerState, sessionsCompleted, handleTimerComplete]);
 
-    // Handle app state changes (background/foreground)
     useEffect(() => {
         const handleAppStateChange = async (nextAppState: string) => {
             const previousState = appStateRef.current;
@@ -226,8 +217,6 @@ export default function PomodoroTimer({
                 previousState.match(/inactive|background/) &&
                 nextAppState === "active"
             ) {
-                // App came to foreground - the useEffect above will handle updates
-                // Just need to recalculate time if we were running
                 if (isRunning && endTime) {
                     const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
                     if (remaining <= 0) {
@@ -237,7 +226,6 @@ export default function PomodoroTimer({
                     }
                 }
             } else if (nextAppState === "background" || nextAppState === "inactive") {
-                // App going to background - persist state
                 await persistTimerState(isRunning, endTime, timerState, sessionsCompleted, notificationId);
             }
         };
@@ -246,10 +234,8 @@ export default function PomodoroTimer({
         return () => subscription.remove();
     }, [isRunning, endTime, timerState, sessionsCompleted, notificationId, handleTimerComplete, persistTimerState]);
 
-    // Initialize timer (check for persisted state)
     useEffect(() => {
         const initialize = async () => {
-            // First check if we have an active timer from context
             if (activeTimer && activeTimer.taskId === taskId) {
                 const remaining = Math.max(0, Math.ceil((activeTimer.endTime - Date.now()) / 1000));
 
@@ -265,7 +251,6 @@ export default function PomodoroTimer({
                     setIsInitialized(true);
                     return;
                 } else {
-                    // Timer would have completed
                     await clearPersistedState();
                     handleTimerComplete(activeTimer.timerState, activeTimer.sessionsCompleted);
                     setIsInitialized(true);
@@ -273,7 +258,6 @@ export default function PomodoroTimer({
                 }
             }
 
-            // Fallback to checking AsyncStorage directly
             const persistedState = await loadPersistedState();
 
             if (persistedState && persistedState.isRunning) {
@@ -289,7 +273,6 @@ export default function PomodoroTimer({
                         setNotificationId(persistedState.notificationId);
                     }
                 } else {
-                    // Timer would have completed while app was closed
                     await clearPersistedState();
                     setTimerState(persistedState.timerState);
                     setSessionsCompleted(persistedState.sessionsCompleted);
@@ -302,23 +285,6 @@ export default function PomodoroTimer({
 
         initialize();
     }, []);
-
-    // Cleanup notification on unmount
-    useEffect(() => {
-        return () => {
-            // Don't cancel notification on unmount if timer is still running
-            // The notification should still fire if app is closed
-        };
-    }, []);
-
-    // Update progress bar
-    useEffect(() => {
-        const totalTime = getTimerDuration(timerState);
-        progress.value = withTiming(timeLeft / totalTime, {
-            duration: 300,
-            easing: Easing.linear,
-        });
-    }, [timeLeft, timerState, getTimerDuration]);
 
     const scheduleTimerNotification = useCallback(async (duration: number, state: TimerState) => {
         if (notificationId) {
@@ -339,18 +305,15 @@ export default function PomodoroTimer({
     const startTimer = useCallback(async () => {
         const newEndTime = Date.now() + timeLeft * 1000;
 
-        // Set state synchronously to trigger the useEffect interval
         setEndTime(newEndTime);
         setIsRunning(true);
 
-        // Haptics and notifications can happen async
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         const notifId = await scheduleTimerNotification(timeLeft, timerState);
         persistTimerState(true, newEndTime, timerState, sessionsCompleted, notifId);
     }, [timeLeft, timerState, sessionsCompleted, scheduleTimerNotification, persistTimerState]);
 
     const pauseTimer = useCallback(async () => {
-        // Calculate remaining time before stopping
         if (endTime) {
             const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
             setTimeLeft(remaining);
@@ -452,17 +415,6 @@ export default function PomodoroTimer({
         }
     };
 
-    const getStateLabel = () => {
-        switch (timerState) {
-            case "work":
-                return "Focus Time";
-            case "shortBreak":
-                return "Short Break";
-            case "longBreak":
-                return "Long Break";
-        }
-    };
-
     const handleMainButtonPress = useCallback(() => {
         if (isRunning) {
             pauseTimer();
@@ -471,7 +423,9 @@ export default function PomodoroTimer({
         }
     }, [isRunning, pauseTimer, startTimer]);
 
-    // Show loading state while initializing
+    const completedSubtasks = subtasks.filter((s) => s.completed).length;
+    const totalSubtasks = subtasks.length;
+
     if (!isInitialized) {
         return (
             <View className="flex-1 items-center justify-center">
@@ -485,58 +439,57 @@ export default function PomodoroTimer({
     return (
         <ScrollView
             className="flex-1"
-            contentContainerStyle={{ gap: 32, paddingBottom: 16 }}
+            contentContainerStyle={{ gap: 24, paddingBottom: 16 }}
             showsVerticalScrollIndicator={false}
         >
-            {/* Timer State Label */}
-            <View className={cn(
-                "items-center justify-center border-5 border-black p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark",
-                getStateColor()
-            )}>
-                <Text className="text-lg font-black uppercase tracking-widest text-white">
-                    {getStateLabel()}
-                </Text>
-            </View>
-
-            {/* Main Timer Display */}
-            <View className="items-center justify-center border-5 border-black bg-neo-accent p-12 shadow-brutal-lg dark:border-neo-primary dark:shadow-brutal-dark-lg">
-                <Text className="text-7xl font-black tabular-nums tracking-tighter text-black">
-                    {formatTime(timeLeft)}
-                </Text>
-            </View>
-
-            {/* Progress Bar */}
-            <View className="h-8 overflow-hidden border-5 border-black bg-white shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm">
-                <Animated.View
-                    style={progressStyle}
-                    className={cn("h-full", getStateColor())}
-                />
-            </View>
-
-            {/* Task Display with Complete Button */}
-            <View className="flex-row gap-4">
-                <View className="flex-1 border-5 border-black bg-neo-secondary p-4 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark">
-                    <Text className="text-xs font-black uppercase tracking-widest text-black">
-                        Current Task
-                    </Text>
-                    <Text className="mt-2 text-lg font-black uppercase text-black">
+            {/* Header with Back Button and Task Title */}
+            <View className="flex-row items-center gap-4">
+                <Pressable
+                    onPress={onBack}
+                    className="h-12 w-12 items-center justify-center border-5 border-black bg-white shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
+                >
+                    <Ionicons name="arrow-back-sharp" size={24} color="#FF0055" />
+                </Pressable>
+                <View className="flex-1 border-5 border-black bg-neo-secondary p-4 shadow-brutal-sm dark:border-neo-primary dark:shadow-brutal-dark-sm">
+                    <Text className="text-lg font-black uppercase tracking-tight text-black" numberOfLines={2}>
                         {selectedTask}
                     </Text>
                 </View>
+            </View>
 
-                {/* Complete Task Button */}
-                <AnimatedPressable
-                    onPress={handleCompleteTaskPress}
-                    onPressIn={handleCompleteButtonPressIn}
-                    onPressOut={handleCompleteButtonPressOut}
-                    style={completeButtonAnimatedStyle}
-                    className="items-center justify-center border-5 border-black bg-neo-green p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
-                >
-                    <Ionicons name="checkmark-done-sharp" size={28} color="black" />
-                    <Text className="mt-1 text-xs font-black uppercase tracking-tight text-black">
-                        Done
-                    </Text>
-                </AnimatedPressable>
+            {/* Subtasks Section */}
+            {totalSubtasks > 0 && (
+                <View className="border-5 border-black bg-white p-4 shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark">
+                    <View className="mb-3 flex-row items-center justify-between">
+                        <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                            Subtasks
+                        </Text>
+                        <View className="flex-row items-center gap-1 border-3 border-black bg-neo-accent px-2 py-1 dark:border-neo-primary">
+                            <Text className="text-xs font-black text-black">
+                                {completedSubtasks}/{totalSubtasks}
+                            </Text>
+                        </View>
+                    </View>
+                    {subtasks.map((subtask, index) => (
+                        <SubtaskItem
+                            key={subtask.id}
+                            subtask={subtask}
+                            index={index}
+                            onToggle={onToggleSubtask}
+                            onDelete={() => {}}
+                        />
+                    ))}
+                </View>
+            )}
+
+            {/* Main Timer Display */}
+            <View className={cn(
+                "items-center justify-center border-5 border-black p-12 shadow-brutal-lg dark:border-neo-primary dark:shadow-brutal-dark-lg",
+                getStateColor()
+            )}>
+                <Text className="text-7xl font-black tabular-nums tracking-tighter text-white">
+                    {formatTime(timeLeft)}
+                </Text>
             </View>
 
             {/* Controls */}
@@ -568,6 +521,20 @@ export default function PomodoroTimer({
                     </Text>
                 </Pressable>
             </View>
+
+            {/* Complete Task Button */}
+            <AnimatedPressable
+                onPress={handleCompleteTaskPress}
+                onPressIn={handleCompleteButtonPressIn}
+                onPressOut={handleCompleteButtonPressOut}
+                style={completeButtonAnimatedStyle}
+                className="flex-row items-center justify-center gap-3 border-5 border-black bg-neo-green p-5 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
+            >
+                <Ionicons name="checkmark-done-sharp" size={28} color="black" />
+                <Text className="text-lg font-black uppercase tracking-tight text-black">
+                    Complete Task
+                </Text>
+            </AnimatedPressable>
 
             {/* Sessions Counter */}
             <View className="flex-row items-center justify-center gap-2 border-5 border-dashed border-gray-400 p-4 dark:border-neo-primary">

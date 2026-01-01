@@ -33,9 +33,8 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 const STORAGE_KEY = "@neo_brutal_todos_v2";
 const CARD_COLORS_COUNT = 6;
 
-// Helper function to get date priority for sorting
 const getDatePriority = (todo: Todo): number => {
-    if (!todo.dueDate) return 4; // No due date - lowest priority
+    if (!todo.dueDate) return 4;
 
     const dueDate = new Date(todo.dueDate);
     const now = new Date();
@@ -44,10 +43,10 @@ const getDatePriority = (todo: Todo): number => {
 
     const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return 0; // Overdue - highest priority
-    if (diffDays === 0) return 1; // Today
-    if (diffDays === 1) return 2; // Tomorrow
-    return 3; // Future
+    if (diffDays < 0) return 0;
+    if (diffDays === 0) return 1;
+    if (diffDays === 1) return 2;
+    return 3;
 };
 
 export default function ZenMode() {
@@ -59,11 +58,9 @@ export default function ZenMode() {
     const { selectedListId, selectedList, setSelectedListId } = useTodoList();
     const { activeTimer, clearActiveTimer, setActiveTimer } = usePomodoro();
 
-    // Initialize from active timer if exists
     useEffect(() => {
         const initFromActiveTimer = async () => {
             if (activeTimer) {
-                // Load the task from storage
                 try {
                     const stored = await AsyncStorage.getItem(STORAGE_KEY);
                     if (stored) {
@@ -71,7 +68,6 @@ export default function ZenMode() {
                         const task = allTodos.find(t => t.id === activeTimer.taskId && !t.archivedAt);
 
                         if (task) {
-                            // Set the correct list
                             const taskListId = task.listId || DEFAULT_LIST_ID;
                             if (taskListId !== selectedListId) {
                                 setSelectedListId(taskListId);
@@ -80,7 +76,6 @@ export default function ZenMode() {
                             setSelectedTodo(task);
                             setTimerStarted(true);
                         } else {
-                            // Task no longer exists, clear timer
                             await clearActiveTimer();
                         }
                     }
@@ -94,7 +89,6 @@ export default function ZenMode() {
         initFromActiveTimer();
     }, [activeTimer]);
 
-    // Reload todos when screen is focused
     useFocusEffect(
         useCallback(() => {
             if (!isInitializing) {
@@ -108,13 +102,11 @@ export default function ZenMode() {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const allTodos: Todo[] = JSON.parse(stored);
-                // Only show active (non-archived) tasks from the selected list
                 const activeTodos = allTodos.filter((t) => {
                     const todoListId = t.listId || DEFAULT_LIST_ID;
                     return !t.archivedAt && todoListId === selectedListId;
                 });
 
-                // Sort by due date priority (smart sort)
                 activeTodos.sort((a, b) => {
                     const priorityA = getDatePriority(a);
                     const priorityB = getDatePriority(b);
@@ -131,6 +123,14 @@ export default function ZenMode() {
                 });
 
                 setTodos(activeTodos);
+
+                // Update selectedTodo if it exists in the refreshed list
+                if (selectedTodo) {
+                    const updatedTodo = activeTodos.find(t => t.id === selectedTodo.id);
+                    if (updatedTodo) {
+                        setSelectedTodo(updatedTodo);
+                    }
+                }
             }
         } catch (e) {
             console.error("Failed to load todos");
@@ -155,24 +155,54 @@ export default function ZenMode() {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
+    const handleToggleSubtask = useCallback(async (subtaskId: string) => {
+        if (!selectedTodo) return;
+
+        try {
+            const stored = await AsyncStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const allTodos: Todo[] = JSON.parse(stored);
+                const updatedTodos = allTodos.map((t) =>
+                    t.id === selectedTodo.id
+                        ? {
+                            ...t,
+                            subtasks: (t.subtasks || []).map((s) =>
+                                s.id === subtaskId ? { ...s, completed: !s.completed } : s
+                            ),
+                        }
+                        : t
+                );
+
+                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTodos));
+
+                // Update local state
+                const updatedTodo = updatedTodos.find(t => t.id === selectedTodo.id);
+                if (updatedTodo) {
+                    setSelectedTodo(updatedTodo);
+                }
+
+                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+        } catch (e) {
+            console.error("Failed to toggle subtask");
+        }
+    }, [selectedTodo]);
+
     const handleCompleteTask = async (taskId: string) => {
         try {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const allTodos: Todo[] = JSON.parse(stored);
 
-                // Find the todo
                 const todo = allTodos.find((t) => t.id === taskId);
                 if (!todo) return;
 
-                // Cancel notification if exists
                 if (todo.notificationId) {
                     await cancelNotification(todo.notificationId);
                 }
 
                 let updatedTodos: Todo[];
 
-                // Check if this is a recurring task
                 if (isRecurrenceActive(todo.recurrence)) {
                     const nextTodo = createNextRecurringTodo(
                         todo,
@@ -180,7 +210,6 @@ export default function ZenMode() {
                     );
 
                     if (nextTodo) {
-                        // Mark current as archived and add the next occurrence
                         updatedTodos = allTodos.map((t) =>
                             t.id === taskId
                                 ? { ...t, completed: true, archivedAt: new Date().toISOString() }
@@ -188,7 +217,6 @@ export default function ZenMode() {
                         );
                         updatedTodos = [nextTodo, ...updatedTodos];
 
-                        // Show notification about next occurrence
                         setTimeout(() => {
                             Alert.alert(
                                 "Task Completed! 🎉",
@@ -203,7 +231,6 @@ export default function ZenMode() {
                             );
                         }, 300);
                     } else {
-                        // Recurrence ended - archive the task
                         updatedTodos = allTodos.map((t) =>
                             t.id === taskId
                                 ? { ...t, completed: true, archivedAt: new Date().toISOString() }
@@ -211,7 +238,6 @@ export default function ZenMode() {
                         );
                     }
                 } else {
-                    // Normal non-recurring task - archive it
                     updatedTodos = allTodos.map((t) =>
                         t.id === taskId
                             ? { ...t, completed: true, archivedAt: new Date().toISOString() }
@@ -221,13 +247,11 @@ export default function ZenMode() {
 
                 await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTodos));
 
-                // Update local state with active tasks only
                 const activeTodos = updatedTodos.filter((t) => {
                     const todoListId = t.listId || DEFAULT_LIST_ID;
                     return !t.archivedAt && todoListId === selectedListId;
                 });
 
-                // Sort by due date priority
                 activeTodos.sort((a, b) => {
                     const priorityA = getDatePriority(a);
                     const priorityB = getDatePriority(b);
@@ -256,7 +280,6 @@ export default function ZenMode() {
     };
 
     const handleBack = async () => {
-        // If timer is running, confirm before leaving
         if (timerStarted && activeTimer) {
             Alert.alert(
                 "Leave Timer?",
@@ -284,7 +307,6 @@ export default function ZenMode() {
         }
     };
 
-    // Helper to format recurrence for display
     const getRecurrenceLabel = (todo: Todo): string | null => {
         if (!isRecurrenceActive(todo.recurrence)) return null;
 
@@ -311,7 +333,6 @@ export default function ZenMode() {
         }
     };
 
-    // Helper to format due date badge
     const getDueDateLabel = (todo: Todo): { label: string; isUrgent: boolean } | null => {
         if (!todo.dueDate) return null;
 
@@ -333,7 +354,6 @@ export default function ZenMode() {
         }
     };
 
-    // Show loading state while initializing
     if (isInitializing) {
         return (
             <View className="flex-1 items-center justify-center bg-neo-bg dark:bg-neo-dark">
@@ -348,24 +368,19 @@ export default function ZenMode() {
     if (timerStarted && selectedTodo) {
         return (
             <View
-                className="flex-1 bg-neo-bg px-6 pt-20 dark:bg-neo-dark"
+                className="flex-1 bg-neo-bg px-6 pt-8 dark:bg-neo-dark"
                 style={{ paddingBottom: Math.max(insets.bottom, 16) }}
             >
                 <StatusBar style="auto" />
 
-                {/* Back Button */}
-                <Pressable
-                    onPress={handleBack}
-                    className="mb-8 self-start border-5 border-black bg-white p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
-                >
-                    <Ionicons name="arrow-back-sharp" size={24} color="#FF0055" />
-                </Pressable>
-
                 <PomodoroTimer
                     selectedTask={selectedTodo.text}
                     taskId={selectedTodo.id}
+                    subtasks={selectedTodo.subtasks || []}
                     onComplete={handleComplete}
                     onCompleteTask={handleCompleteTask}
+                    onToggleSubtask={handleToggleSubtask}
+                    onBack={handleBack}
                 />
             </View>
         );
@@ -380,7 +395,7 @@ export default function ZenMode() {
                     className="flex-1"
                     contentContainerStyle={{
                         paddingHorizontal: 24,
-                        paddingTop: 80,
+                        paddingTop: 32,
                         paddingBottom: Math.max(insets.bottom, 24) + 24
                     }}
                     keyboardShouldPersistTaps="handled"
@@ -539,6 +554,31 @@ export default function ZenMode() {
                                                                     )}
                                                                 >
                                                                     {recurrenceLabel}
+                                                                </Text>
+                                                            </View>
+                                                        )}
+
+                                                        {/* Subtasks indicator */}
+                                                        {(todo.subtasks?.length || 0) > 0 && (
+                                                            <View className="flex-row items-center gap-1">
+                                                                <Ionicons
+                                                                    name="list-sharp"
+                                                                    size={12}
+                                                                    color={
+                                                                        selectedTodo?.id === todo.id
+                                                                            ? "white"
+                                                                            : "#00FFF0"
+                                                                    }
+                                                                />
+                                                                <Text
+                                                                    className={cn(
+                                                                        "text-xs font-black uppercase",
+                                                                        selectedTodo?.id === todo.id
+                                                                            ? "text-white/80"
+                                                                            : "text-neo-secondary"
+                                                                    )}
+                                                                >
+                                                                    {todo.subtasks?.filter(s => s.completed).length}/{todo.subtasks?.length}
                                                                 </Text>
                                                             </View>
                                                         )}
