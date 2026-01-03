@@ -11,6 +11,7 @@ interface SubtaskListProps {
     onAddSubtask: (text: string) => void;
     onToggleSubtask: (subtaskId: string) => void;
     onDeleteSubtask: (subtaskId: string) => void;
+    showBorder?: boolean;
 }
 
 export default function SubtaskList({
@@ -18,6 +19,7 @@ export default function SubtaskList({
                                         onAddSubtask,
                                         onToggleSubtask,
                                         onDeleteSubtask,
+                                        showBorder = false,
                                     }: SubtaskListProps) {
     const [newSubtaskText, setNewSubtaskText] = useState("");
     const colorScheme = useColorScheme();
@@ -35,7 +37,7 @@ export default function SubtaskList({
     return (
         <Animated.View
             entering={FadeIn.duration(200).easing(Easing.out(Easing.quad))}
-            className="mt-4 border-t-4 border-dashed border-black/30 pt-4 dark:border-white/20"
+            className={showBorder ? "mt-4 border-t-4 border-dashed border-black/30 pt-4 dark:border-white/20" : ""}
         >
             {/* Header */}
             <View className="mb-3 flex-row items-center justify-between">

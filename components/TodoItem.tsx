@@ -9,16 +9,19 @@ import Animated, {
     withTiming,
     Easing,
     runOnJS,
+    FadeIn,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import * as Haptics from "expo-haptics";
-import DatePickerPanel from "./DatePickerPanel";
-import SubtaskList from "./SubTaskList";
 import { Todo } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
-import { getRecurrenceShortLabel, isRecurrenceActive } from "@/utils/recurrence";
+import {
+    getRecurrenceShortLabel,
+    isRecurrenceActive,
+    formatRecurrencePattern,
+} from "@/utils/recurrence";
 import { useBulkEdit } from "@/context/BulkEditContext";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -60,8 +63,14 @@ const getDatePriority = (dueDate: string): number => {
     const date = new Date(dueDate);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dueDateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const dueDateStart = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+    );
+    const diffDays = Math.floor(
+        (dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
 
     if (diffDays < 0) return 0;
     if (diffDays === 0) return 1;
@@ -75,19 +84,11 @@ export default function TodoItem({
                                      onToggle,
                                      onEdit,
                                      onDelete,
-                                     onSetReminder,
-                                     onClearReminder,
-                                     onSetDueDate,
-                                     onClearDueDate,
-                                     onSetRecurrence,
-                                     onClearRecurrence,
-                                     onAddSubtask,
                                      onToggleSubtask,
                                      onDeleteSubtask,
                                  }: TodoItemProps) {
     const colorClass = CARD_COLORS[item.colorVariant ?? index % CARD_COLORS.length];
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [showSubtasks, setShowSubtasks] = useState(false);
+    const [showDetails, setShowDetails] = useState(false);
     const { isBulkMode, selectedIds, toggleSelection } = useBulkEdit();
 
     const isSelected = selectedIds.has(item.id);
@@ -128,74 +129,65 @@ export default function TodoItem({
         runOnJS(onDelete)(item.id);
     }, [onDelete, item.id]);
 
-    const handleSetReminder = useCallback(
-        (date: Date) => onSetReminder(item.id, date),
-        [onSetReminder, item.id]
-    );
+    const toggleDetails = useCallback(async () => {
+        if (!isBulkMode) {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowDetails((prev) => !prev);
+        }
+    }, [isBulkMode]);
 
-    const handleClearReminder = useCallback(() => {
-        onClearReminder(item.id);
-    }, [onClearReminder, item.id]);
-
-    const handleSetDueDate = useCallback(
-        (date: Date) => onSetDueDate(item.id, date),
-        [onSetDueDate, item.id]
-    );
-
-    const handleClearDueDate = useCallback(() => {
-        onClearDueDate(item.id);
-    }, [onClearDueDate, item.id]);
-
-    const handleSetRecurrence = useCallback(
-        (pattern: RecurrencePattern) => onSetRecurrence(item.id, pattern),
-        [onSetRecurrence, item.id]
-    );
-
-    const handleClearRecurrence = useCallback(() => {
-        onClearRecurrence(item.id);
-    }, [onClearRecurrence, item.id]);
-
-    const handleAddSubtask = useCallback(
-        (text: string) => onAddSubtask(item.id, text),
-        [onAddSubtask, item.id]
-    );
-
-    const handleToggleSubtask = useCallback(
-        (subtaskId: string) => onToggleSubtask(item.id, subtaskId),
+    const handleSubtaskToggle = useCallback(
+        async (subtaskId: string) => {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggleSubtask(item.id, subtaskId);
+        },
         [onToggleSubtask, item.id]
     );
 
-    const handleDeleteSubtask = useCallback(
-        (subtaskId: string) => onDeleteSubtask(item.id, subtaskId),
+    const handleSubtaskDelete = useCallback(
+        async (subtaskId: string) => {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            onDeleteSubtask(item.id, subtaskId);
+        },
         [onDeleteSubtask, item.id]
     );
-
-    const toggleDatePicker = useCallback(() => {
-        if (!isBulkMode) {
-            setShowDatePicker((prev) => !prev);
-            setShowSubtasks(false);
-        }
-    }, [isBulkMode]);
-
-    const toggleSubtasks = useCallback(async () => {
-        if (!isBulkMode) {
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowSubtasks((prev) => !prev);
-            setShowDatePicker(false);
-        }
-    }, [isBulkMode]);
 
     const formatDueDateBadge = (dateString: string) => {
         const priority = getDatePriority(dateString);
         switch (priority) {
-            case 0: return "OVERDUE";
-            case 1: return "TODAY";
-            case 2: return "TOMORROW";
+            case 0:
+                return "OVERDUE";
+            case 1:
+                return "TODAY";
+            case 2:
+                return "TOMORROW";
             default:
                 return new Date(dateString)
                     .toLocaleDateString("en-US", { month: "short", day: "numeric" })
                     .toUpperCase();
         }
+    };
+
+    const formatDueDateFull = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+        });
+    };
+
+    const formatReminderFull = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        });
     };
 
     const isDueDateOverdue = (dateString: string) => getDatePriority(dateString) === 0;
@@ -208,7 +200,9 @@ export default function TodoItem({
 
     return (
         <Animated.View
-            entering={FadeInDown.delay(index * 30).duration(250).easing(Easing.out(Easing.quad))}
+            entering={FadeInDown.delay(index * 30)
+                .duration(250)
+                .easing(Easing.out(Easing.quad))}
             exiting={FadeOut.duration(200).easing(Easing.in(Easing.quad))}
             layout={Layout.duration(250).easing(Easing.inOut(Easing.quad))}
             style={animatedStyle}
@@ -223,7 +217,7 @@ export default function TodoItem({
         >
             <View className="flex-row items-center justify-between">
                 <TouchableOpacity
-                    onPress={isBulkMode ? handleBulkSelect : toggleDatePicker}
+                    onPress={isBulkMode ? handleBulkSelect : toggleDetails}
                     className="flex-1 flex-col gap-4"
                     activeOpacity={0.7}
                 >
@@ -238,7 +232,9 @@ export default function TodoItem({
                             <Pressable
                                 className={cn(
                                     "h-10 w-10 border-5 border-black items-center justify-center shadow-brutal-sm dark:border-neo-primary dark:shadow-brutal-dark-sm",
-                                    isSelected ? "bg-neo-green" : "bg-white dark:bg-neo-dark-surface"
+                                    isSelected
+                                        ? "bg-neo-green"
+                                        : "bg-white dark:bg-neo-dark-surface"
                                 )}
                                 onPress={handleBulkSelect}
                             >
@@ -278,7 +274,8 @@ export default function TodoItem({
                                             name="calendar-sharp"
                                             size={12}
                                             color={
-                                                isDueDateOverdue(item.dueDate) || isDueDateToday(item.dueDate)
+                                                isDueDateOverdue(item.dueDate) ||
+                                                isDueDateToday(item.dueDate)
                                                     ? "white"
                                                     : "black"
                                             }
@@ -286,7 +283,8 @@ export default function TodoItem({
                                         <Text
                                             className={cn(
                                                 "text-xs font-black uppercase tracking-tight",
-                                                isDueDateOverdue(item.dueDate) || isDueDateToday(item.dueDate)
+                                                isDueDateOverdue(item.dueDate) ||
+                                                isDueDateToday(item.dueDate)
                                                     ? "text-white"
                                                     : "text-black dark:text-black"
                                             )}
@@ -310,19 +308,20 @@ export default function TodoItem({
                                 )}
                                 {/* Subtask badge */}
                                 {subtaskCount > 0 && (
-                                    <Pressable
-                                        onPress={toggleSubtasks}
-                                        className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-secondary"
-                                    >
+                                    <View className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-secondary">
                                         <Ionicons name="list-sharp" size={12} color="black" />
                                         <Text className="text-xs font-black text-black">
                                             {completedSubtasks}/{subtaskCount}
                                         </Text>
-                                    </Pressable>
+                                    </View>
                                 )}
                                 {!item.dueDate && !hasRecurrence && subtaskCount === 0 && (
                                     <View className="flex-row mx-auto gap-1 opacity-50">
-                                        <Ionicons name="calendar-outline" size={12} color="#666" />
+                                        <Ionicons
+                                            name="calendar-outline"
+                                            size={12}
+                                            color="#666"
+                                        />
                                         <Text className="text-xs font-black uppercase tracking-tight text-gray-600 dark:text-gray-600">
                                             NO DUE DATE
                                         </Text>
@@ -333,20 +332,6 @@ export default function TodoItem({
                         {/* Action Buttons - hidden in bulk mode */}
                         {!isBulkMode && (
                             <View className="flex-row gap-3">
-                                {/* Subtasks button */}
-                                <Pressable
-                                    onPress={toggleSubtasks}
-                                    className={cn(
-                                        "h-11 w-11 items-center justify-center border-5 border-black shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
-                                        showSubtasks ? "bg-neo-green" : "bg-white dark:bg-neo-dark-surface"
-                                    )}
-                                >
-                                    <Ionicons
-                                        name="list-sharp"
-                                        size={20}
-                                        color={showSubtasks ? "black" : "#FF0055"}
-                                    />
-                                </Pressable>
                                 <Pressable
                                     onPress={handleEditPress}
                                     className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-secondary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
@@ -365,28 +350,142 @@ export default function TodoItem({
                 </TouchableOpacity>
             </View>
 
-            {/* Subtasks Panel */}
-            {showSubtasks && !isBulkMode && (
-                <SubtaskList
-                    subtasks={subtasks}
-                    onAddSubtask={handleAddSubtask}
-                    onToggleSubtask={handleToggleSubtask}
-                    onDeleteSubtask={handleDeleteSubtask}
-                />
-            )}
+            {/* Task Details Panel - Text Format */}
+            {showDetails && !isBulkMode && (
+                <Animated.View
+                    entering={FadeIn.duration(200).easing(Easing.out(Easing.quad))}
+                    className="mt-4 border-t-4 border-dashed border-black/30 pt-4 dark:border-white/20"
+                >
+                    <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-700 dark:text-gray-700">
+                        Task Details
+                    </Text>
 
-            {showDatePicker && !isBulkMode && (
-                <DatePickerPanel
-                    reminderDate={item.reminderDate}
-                    dueDate={item.dueDate}
-                    recurrence={item.recurrence}
-                    onSetReminder={handleSetReminder}
-                    onClearReminder={handleClearReminder}
-                    onSetDueDate={handleSetDueDate}
-                    onClearDueDate={handleClearDueDate}
-                    onSetRecurrence={handleSetRecurrence}
-                    onClearRecurrence={handleClearRecurrence}
-                />
+                    {/* Due Date */}
+                    <View className="mb-3 flex-row items-start gap-3">
+                        <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-accent dark:border-neo-primary">
+                            <Ionicons name="calendar-sharp" size={16} color="black" />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                                Due Date
+                            </Text>
+                            <Text className="text-sm font-black uppercase text-black dark:text-black">
+                                {item.dueDate
+                                    ? formatDueDateFull(item.dueDate)
+                                    : "Not set"}
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Reminder */}
+                    <View className="mb-3 flex-row items-start gap-3">
+                        <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-green dark:border-neo-primary">
+                            <Ionicons name="alarm-sharp" size={16} color="black" />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                                Reminder
+                            </Text>
+                            <Text className="text-sm font-black uppercase text-black dark:text-black">
+                                {item.reminderDate
+                                    ? formatReminderFull(item.reminderDate)
+                                    : "Not set"}
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Recurrence */}
+                    <View className="mb-3 flex-row items-start gap-3">
+                        <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-purple dark:border-neo-primary">
+                            <Ionicons name="repeat-sharp" size={16} color="white" />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                                Repeat
+                            </Text>
+                            <Text className="text-sm font-black uppercase text-black dark:text-black">
+                                {hasRecurrence
+                                    ? formatRecurrencePattern(item.recurrence!)
+                                    : "Does not repeat"}
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Subtasks - Interactive */}
+                    {subtaskCount > 0 && (
+                        <View className="flex-row items-start gap-3">
+                            <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-secondary dark:border-neo-primary">
+                                <Ionicons name="list-sharp" size={16} color="black" />
+                            </View>
+                            <View className="flex-1">
+                                <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                                    Subtasks ({completedSubtasks}/{subtaskCount})
+                                </Text>
+                                <View className="mt-2 gap-2">
+                                    {subtasks.map((subtask) => (
+                                        <View
+                                            key={subtask.id}
+                                            className="flex-row items-center gap-3"
+                                        >
+                                            {/* Toggle Subtask Checkbox */}
+                                            <Pressable
+                                                onPress={() => handleSubtaskToggle(subtask.id)}
+                                                className={cn(
+                                                    "h-7 w-7 items-center justify-center border-3 border-black dark:border-neo-primary",
+                                                    subtask.completed
+                                                        ? "bg-neo-green"
+                                                        : "bg-white dark:bg-neo-dark-surface"
+                                                )}
+                                            >
+                                                {subtask.completed && (
+                                                    <Ionicons
+                                                        name="checkmark-sharp"
+                                                        size={16}
+                                                        color="black"
+                                                    />
+                                                )}
+                                            </Pressable>
+
+                                            {/* Subtask Text */}
+                                            <Text
+                                                className={cn(
+                                                    "flex-1 text-sm font-black uppercase",
+                                                    subtask.completed
+                                                        ? "text-gray-500 line-through dark:text-gray-500"
+                                                        : "text-black dark:text-black"
+                                                )}
+                                                numberOfLines={2}
+                                            >
+                                                {subtask.text}
+                                            </Text>
+
+                                            {/* Delete Subtask Button */}
+                                            <Pressable
+                                                onPress={() => handleSubtaskDelete(subtask.id)}
+                                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                className="h-7 w-7 items-center justify-center border-3 border-black bg-neo-primary dark:border-neo-primary"
+                                            >
+                                                <Ionicons
+                                                    name="close-sharp"
+                                                    size={14}
+                                                    color="white"
+                                                />
+                                            </Pressable>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Tap to edit hint */}
+                    <View className="mt-4 flex-row items-center justify-center gap-2 border-3 border-dashed border-gray-400 bg-white/50 p-3 dark:border-neo-primary dark:bg-neo-dark-surface/50">
+                        <Ionicons name="pencil-outline" size={16} color="#666" />
+                        <Text className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-500">
+                            Tap edit to add subtasks
+                        </Text>
+                    </View>
+                </Animated.View>
             )}
         </Animated.View>
     );

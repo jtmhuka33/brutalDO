@@ -1,6 +1,6 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import UndoToast from "@/components/UndoToast";
-import {useToast} from "@/context/ToastContext";
+import { useToast } from "@/context/ToastContext";
 import ZenModeButton from "@/components/ZenModeButton";
 import BulkEditButton from "@/components/BulkEditButton";
 import BulkActionBar from "@/components/BulkActionBar";
@@ -8,41 +8,42 @@ import {
     Alert,
     FlatList,
     Keyboard,
-    KeyboardAvoidingView,
-    Platform,
     Pressable,
     Text,
-    TextInput,
     useColorScheme,
     View,
 } from "react-native";
-import Animated, {Easing, FadeIn, useAnimatedStyle, useSharedValue, withTiming,} from "react-native-reanimated";
+import Animated, {
+    Easing,
+    FadeIn,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
+} from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {StatusBar} from "expo-status-bar";
-import {Ionicons} from "@expo/vector-icons";
-import {clsx} from "clsx";
-import {twMerge} from "tailwind-merge";
+import { StatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {useNavigation, useFocusEffect} from "expo-router";
-import {DrawerActions} from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation, useFocusEffect, router } from "expo-router";
+import { DrawerActions } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 
 import TodoItem from "@/components/TodoItem";
 import ArchiveButton from "@/components/ArchiveButton";
 import ArchiveModal from "@/components/ArchiveModal";
-import {SortType, Todo, Subtask} from "@/types/todo";
-import {RecurrencePattern} from "@/types/recurrence";
-import {DEFAULT_LIST_ID} from "@/types/todoList";
-import {useTodoList} from "@/context/TodoListContext";
-import {useBulkEdit} from "@/context/BulkEditContext";
-import {cancelNotification, registerForPushNotificationsAsync, scheduleNotification,} from "@/utils/notifications";
-import {createNextRecurringTodo, isRecurrenceActive} from "@/utils/recurrence";
+import { SortType, Todo, Subtask } from "@/types/todo";
+import { RecurrencePattern } from "@/types/recurrence";
+import { DEFAULT_LIST_ID } from "@/types/todoList";
+import { useTodoList } from "@/context/TodoListContext";
+import { useBulkEdit } from "@/context/BulkEditContext";
+import {
+    cancelNotification,
+    registerForPushNotificationsAsync,
+    scheduleNotification,
+} from "@/utils/notifications";
+import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
 import SortSelector from "@/components/SortSelector";
-
-function cn(...inputs: (string | undefined | null | false)[]) {
-    return twMerge(clsx(inputs));
-}
 
 const STORAGE_KEY = "@neo_brutal_todos_v2";
 const SORT_STORAGE_KEY = "@neo_brutal_sort_v1";
@@ -56,9 +57,7 @@ const TIMING_CONFIG = {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function TodoApp() {
-    const [text, setText] = useState("");
     const [todos, setTodos] = useState<Todo[]>([]);
-    const [editingId, setEditingId] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<SortType>("DEFAULT");
     const [showArchive, setShowArchive] = useState(false);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -68,7 +67,6 @@ export default function TodoApp() {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
     const { showDeleteToast, toast } = useToast();
-    const inputRef = useRef<TextInput>(null);
 
     const { selectedListId, selectedList } = useTodoList();
     const {
@@ -82,11 +80,11 @@ export default function TodoApp() {
         setTodosRef,
     } = useBulkEdit();
 
-    const buttonScale = useSharedValue(1);
+    const addButtonScale = useSharedValue(1);
     const menuScale = useSharedValue(1);
 
-    const buttonAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: buttonScale.value }],
+    const addButtonAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: addButtonScale.value }],
     }));
 
     const menuAnimatedStyle = useAnimatedStyle(() => ({
@@ -217,34 +215,20 @@ export default function TodoApp() {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }, [deleteTasks, exitBulkMode, showDeleteToast]);
 
-    const handleAddOrUpdate = useCallback(() => {
-        if (!text.trim()) return;
-
-        Keyboard.dismiss();
-
-        buttonScale.value = withTiming(0.9, TIMING_CONFIG, () => {
-            buttonScale.value = withTiming(1, TIMING_CONFIG);
+    const handleAddTask = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        addButtonScale.value = withTiming(0.9, TIMING_CONFIG, () => {
+            addButtonScale.value = withTiming(1, TIMING_CONFIG);
         });
+        router.push("/(tabs)/create-task");
+    }, []);
 
-        if (editingId) {
-            setTodos((prev) =>
-                prev.map((t) =>
-                    t.id === editingId ? { ...t, text: text.trim() } : t
-                )
-            );
-            setEditingId(null);
-        } else {
-            const newTodo: Todo = {
-                id: Date.now().toString(),
-                text: text.trim().toUpperCase(),
-                completed: false,
-                colorVariant: Math.floor(Math.random() * CARD_COLORS_COUNT),
-                listId: selectedListId,
-            };
-            setTodos((prev) => [newTodo, ...prev]);
-        }
-        setText("");
-    }, [text, editingId, selectedListId]);
+    const handleEditTask = useCallback((todo: Todo) => {
+        router.push({
+            pathname: "/(tabs)/create-task",
+            params: { todoId: todo.id },
+        });
+    }, []);
 
     const handleAddSubtask = useCallback((todoId: string, text: string) => {
         const newSubtask: Subtask = {
@@ -298,7 +282,9 @@ export default function TodoApp() {
                 );
 
                 if (nextTodo) {
-                    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    await Haptics.notificationAsync(
+                        Haptics.NotificationFeedbackType.Success
+                    );
 
                     setTodos((prev) => {
                         const updated = prev.map((t) =>
@@ -376,19 +362,15 @@ export default function TodoApp() {
         setTodos((prev) => prev.filter((t) => !t.archivedAt));
     }, []);
 
-    const startEditing = useCallback((todo: Todo) => {
-        setText(todo.text);
-        setEditingId(todo.id);
-        setTimeout(() => inputRef.current?.focus(), 100);
-    }, []);
-
     const handleSetReminder = useCallback(
         async (id: string, date: Date) => {
             const todo = todos.find((t) => t.id === id);
             if (!todo) return;
 
             if (date <= new Date()) {
-                Alert.alert("Invalid Time", "Please select a time in the future.", [{ text: "OK" }]);
+                Alert.alert("Invalid Time", "Please select a time in the future.", [
+                    { text: "OK" },
+                ]);
                 return;
             }
 
@@ -400,7 +382,9 @@ export default function TodoApp() {
 
             setTodos((prev) =>
                 prev.map((t) =>
-                    t.id === id ? { ...t, reminderDate: date.toISOString(), notificationId } : t
+                    t.id === id
+                        ? { ...t, reminderDate: date.toISOString(), notificationId }
+                        : t
                 )
             );
         },
@@ -416,7 +400,9 @@ export default function TodoApp() {
 
             setTodos((prev) =>
                 prev.map((t) =>
-                    t.id === id ? { ...t, reminderDate: undefined, notificationId: undefined } : t
+                    t.id === id
+                        ? { ...t, reminderDate: undefined, notificationId: undefined }
+                        : t
                 )
             );
         },
@@ -433,20 +419,26 @@ export default function TodoApp() {
     }, []);
 
     const handleClearDueDate = useCallback((id: string) => {
-        setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, dueDate: undefined } : t)));
+        setTodos((prev) =>
+            prev.map((t) => (t.id === id ? { ...t, dueDate: undefined } : t))
+        );
     }, []);
 
     const handleSetRecurrence = useCallback((id: string, pattern: RecurrencePattern) => {
         setTodos((prev) =>
             prev.map((t) =>
-                t.id === id ? { ...t, recurrence: pattern, isRecurring: pattern.type !== "none" } : t
+                t.id === id
+                    ? { ...t, recurrence: pattern, isRecurring: pattern.type !== "none" }
+                    : t
             )
         );
     }, []);
 
     const handleClearRecurrence = useCallback((id: string) => {
         setTodos((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, recurrence: undefined, isRecurring: false } : t))
+            prev.map((t) =>
+                t.id === id ? { ...t, recurrence: undefined, isRecurring: false } : t
+            )
         );
     }, []);
 
@@ -455,8 +447,14 @@ export default function TodoApp() {
         const dueDate = new Date(todo.dueDate);
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-        const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const dueDateStart = new Date(
+            dueDate.getFullYear(),
+            dueDate.getMonth(),
+            dueDate.getDate()
+        );
+        const diffDays = Math.floor(
+            (dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        );
 
         if (diffDays < 0) return 0;
         if (diffDays === 0) return 1;
@@ -481,14 +479,18 @@ export default function TodoApp() {
                     return b.text.localeCompare(a.text, undefined, { sensitivity: "base" });
                 case "DUE_ASC":
                     if (a.dueDate && b.dueDate) {
-                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                        return (
+                            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+                        );
                     }
                     if (a.dueDate && !b.dueDate) return -1;
                     if (!a.dueDate && b.dueDate) return 1;
                     return parseInt(b.id) - parseInt(a.id);
                 case "DUE_DESC":
                     if (a.dueDate && b.dueDate) {
-                        return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+                        return (
+                            new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+                        );
                     }
                     if (a.dueDate && !b.dueDate) return -1;
                     if (!a.dueDate && b.dueDate) return 1;
@@ -499,7 +501,9 @@ export default function TodoApp() {
                     const priorityB = getDatePriority(b);
                     if (priorityA !== priorityB) return priorityA - priorityB;
                     if (a.dueDate && b.dueDate) {
-                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                        return (
+                            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+                        );
                     }
                     return parseInt(b.id) - parseInt(a.id);
             }
@@ -519,7 +523,7 @@ export default function TodoApp() {
                 item={item}
                 index={index}
                 onToggle={archiveTodo}
-                onEdit={startEditing}
+                onEdit={handleEditTask}
                 onDelete={deleteTodo}
                 onSetReminder={handleSetReminder}
                 onClearReminder={handleClearReminder}
@@ -534,7 +538,7 @@ export default function TodoApp() {
         ),
         [
             archiveTodo,
-            startEditing,
+            handleEditTask,
             deleteTodo,
             handleSetReminder,
             handleClearReminder,
@@ -554,7 +558,10 @@ export default function TodoApp() {
         if (archivedTodos.length === 0 || isBulkMode) return null;
         return (
             <View className="mt-4">
-                <ArchiveButton count={archivedTodos.length} onPress={() => setShowArchive(true)} />
+                <ArchiveButton
+                    count={archivedTodos.length}
+                    onPress={() => setShowArchive(true)}
+                />
             </View>
         );
     }, [archivedTodos.length, isBulkMode]);
@@ -618,43 +625,22 @@ export default function TodoApp() {
                 <SortSelector activeSort={sortBy} onSortChange={handleSortChange} />
             )}
 
-            {/* Input Area - hidden in bulk mode */}
+            {/* Add Task Button - hidden in bulk mode */}
             {!isBulkMode && (
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === "ios" ? "padding" : "height"}
-                    className="mb-8 flex-row gap-4"
+                <AnimatedPressable
+                    onPress={handleAddTask}
+                    style={addButtonAnimatedStyle}
+                    className="mb-8 flex-row items-center justify-center gap-3 border-5 border-black bg-neo-accent p-5 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:bg-neo-primary dark:shadow-brutal-dark"
                 >
-                    <TextInput
-                        ref={inputRef}
-                        value={text}
-                        onChangeText={setText}
-                        placeholder={editingId ? "EDIT TASK..." : "WHAT'S THE TASK?!"}
-                        placeholderTextColor={colorScheme === "dark" ? "#666" : "#999"}
-                        className="flex-1 border-5 border-black bg-white p-5 font-black text-lg text-black shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white dark:shadow-brutal-dark uppercase"
-                        returnKeyType="done"
-                        onSubmitEditing={handleAddOrUpdate}
-                        submitBehavior="blurAndSubmit"
+                    <Ionicons
+                        name="add-sharp"
+                        size={32}
+                        color={colorScheme === "dark" ? "white" : "black"}
                     />
-                    <AnimatedPressable
-                        onPress={handleAddOrUpdate}
-                        disabled={!text.trim()}
-                        style={buttonAnimatedStyle}
-                        className={cn(
-                            "items-center justify-center border-5 border-black px-7 shadow-brutal dark:border-neo-primary dark:shadow-brutal-dark",
-                            !text.trim()
-                                ? "bg-gray-300 dark:bg-neo-dark-elevated opacity-50"
-                                : editingId
-                                    ? "bg-neo-secondary active:translate-x-[8px] active:translate-y-[8px] active:shadow-none"
-                                    : "bg-neo-accent active:translate-x-[8px] active:translate-y-[8px] active:shadow-none"
-                        )}
-                    >
-                        <Ionicons
-                            name={editingId ? "save-sharp" : "add-sharp"}
-                            size={36}
-                            color={!text.trim() ? "#999" : "black"}
-                        />
-                    </AnimatedPressable>
-                </KeyboardAvoidingView>
+                    <Text className="text-xl font-black uppercase tracking-tight text-black dark:text-white">
+                        Add Task
+                    </Text>
+                </AnimatedPressable>
             )}
 
             {/* List */}
@@ -676,7 +662,9 @@ export default function TodoApp() {
                 ListFooterComponent={ListFooterComponent}
                 ListEmptyComponent={
                     <Animated.View
-                        entering={FadeIn.duration(400).delay(200).easing(Easing.out(Easing.quad))}
+                        entering={FadeIn.duration(400)
+                            .delay(200)
+                            .easing(Easing.out(Easing.quad))}
                         className="mt-16 items-center justify-center border-5 border-dashed border-gray-400 p-12 dark:border-neo-primary rotate-2"
                     >
                         <Text className="text-3xl font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">
