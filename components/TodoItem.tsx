@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import * as Haptics from "expo-haptics";
-import { Todo } from "@/types/todo";
+import { Todo, getPriorityOption } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import {
     getRecurrenceShortLabel,
@@ -198,6 +198,10 @@ export default function TodoItem({
     const subtaskCount = subtasks.length;
     const completedSubtasks = subtasks.filter((s) => s.completed).length;
 
+    // Priority
+    const priorityOption = getPriorityOption(item.priority);
+    const hasPriority = item.priority && item.priority !== "none";
+
     return (
         <Animated.View
             entering={FadeInDown.delay(index * 30)
@@ -257,6 +261,29 @@ export default function TodoItem({
                         )}
                         <View className="flex-1 gap-1 mx-auto">
                             <View className="flex-row flex-wrap mx-3 items-center gap-2 mt-1">
+                                {/* Priority Badge */}
+                                {hasPriority && (
+                                    <View
+                                        className={cn(
+                                            "flex-row items-center gap-1 px-2 py-1 border-3 border-black",
+                                            priorityOption.colorClass
+                                        )}
+                                    >
+                                        <Ionicons
+                                            name={priorityOption.icon as any}
+                                            size={12}
+                                            color={item.priority === "low" ? "black" : "white"}
+                                        />
+                                        <Text
+                                            className={cn(
+                                                "text-xs font-black uppercase tracking-tight",
+                                                priorityOption.textColorClass
+                                            )}
+                                        >
+                                            {priorityOption.shortLabel}
+                                        </Text>
+                                    </View>
+                                )}
                                 {item.dueDate && (
                                     <View
                                         className={cn(
@@ -315,7 +342,7 @@ export default function TodoItem({
                                         </Text>
                                     </View>
                                 )}
-                                {!item.dueDate && !hasRecurrence && subtaskCount === 0 && (
+                                {!item.dueDate && !hasRecurrence && subtaskCount === 0 && !hasPriority && (
                                     <View className="flex-row mx-auto gap-1 opacity-50">
                                         <Ionicons
                                             name="calendar-outline"
@@ -359,6 +386,28 @@ export default function TodoItem({
                     <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-700 dark:text-gray-700">
                         Task Details
                     </Text>
+
+                    {/* Priority */}
+                    <View className="mb-3 flex-row items-start gap-3">
+                        <View className={cn(
+                            "h-8 w-8 items-center justify-center border-3 border-black dark:border-neo-primary",
+                            hasPriority ? priorityOption.colorClass : "bg-gray-300"
+                        )}>
+                            <Ionicons
+                                name="flag-sharp"
+                                size={16}
+                                color={hasPriority && item.priority !== "low" ? "white" : "black"}
+                            />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                                Priority
+                            </Text>
+                            <Text className="text-sm font-black uppercase text-black dark:text-black">
+                                {hasPriority ? priorityOption.label : "Not set"}
+                            </Text>
+                        </View>
+                    </View>
 
                     {/* Due Date */}
                     <View className="mb-3 flex-row items-start gap-3">
@@ -482,7 +531,7 @@ export default function TodoItem({
                     <View className="mt-4 flex-row items-center justify-center gap-2 border-3 border-dashed border-gray-400 bg-white/50 p-3 dark:border-neo-primary dark:bg-neo-dark-surface/50">
                         <Ionicons name="pencil-outline" size={16} color="#666" />
                         <Text className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-500">
-                            Tap edit to add subtasks
+                            Tap edit to modify task
                         </Text>
                     </View>
                 </Animated.View>

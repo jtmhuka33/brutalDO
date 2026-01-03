@@ -1,4 +1,3 @@
-// components/SortSelector.tsx
 import React, { useState, useCallback } from "react";
 import { View, Text, Pressable, useColorScheme } from "react-native";
 import Animated, {
@@ -21,6 +20,8 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 
 const SORT_OPTIONS: SortOption[] = [
     { value: "DEFAULT", label: "SMART", icon: "sparkles-sharp" },
+    { value: "PRIORITY_DESC", label: "PRIORITY ↓", icon: "flag-sharp" },
+    { value: "PRIORITY_ASC", label: "PRIORITY ↑", icon: "flag-sharp" },
     { value: "DUE_ASC", label: "DUE ↑", icon: "calendar-sharp" },
     { value: "DUE_DESC", label: "DUE ↓", icon: "calendar-sharp" },
     { value: "ALPHA_ASC", label: "A → Z", icon: "text-sharp" },
@@ -28,7 +29,9 @@ const SORT_OPTIONS: SortOption[] = [
 ];
 
 const SORT_DESCRIPTIONS: Record<SortType, string> = {
-    DEFAULT: "Overdue → Today → ETC.",
+    DEFAULT: "Overdue → Today → Priority",
+    PRIORITY_DESC: "High priority first",
+    PRIORITY_ASC: "Low priority first",
     DUE_ASC: "Earliest due date first",
     DUE_DESC: "Latest due date first",
     ALPHA_ASC: "Alphabetical A to Z",
@@ -128,6 +131,7 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
                 >
                     {SORT_OPTIONS.map((option, index) => {
                         const isActive = activeSort === option.value;
+                        const isPriorityOption = option.value.startsWith("PRIORITY");
                         return (
                             <Pressable
                                 key={option.value}
@@ -144,13 +148,17 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
                                 <View
                                     className={cn(
                                         "h-8 w-8 items-center justify-center border-4 border-black dark:border-neo-primary",
-                                        isActive ? "bg-white" : "bg-neo-accent"
+                                        isActive
+                                            ? "bg-white"
+                                            : isPriorityOption
+                                                ? "bg-neo-orange"
+                                                : "bg-neo-accent"
                                     )}
                                 >
                                     <Ionicons
                                         name={option.icon as any}
                                         size={16}
-                                        color={isActive ? "#FF0055" : "black"}
+                                        color={isActive ? "#FF0055" : isPriorityOption ? "white" : "black"}
                                     />
                                 </View>
                                 <View className="flex-1">

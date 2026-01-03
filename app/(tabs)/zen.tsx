@@ -19,7 +19,7 @@ import { clsx } from "clsx";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import PomodoroTimer from "@/components/PomodoroTimer";
-import { Todo } from "@/types/todo";
+import { Todo, getPriorityOption } from "@/types/todo";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
 import { usePomodoro } from "@/context/PomodoroContext";
@@ -582,6 +582,42 @@ export default function ZenMode() {
                                                                 </Text>
                                                             </View>
                                                         )}
+                                                        {/* Priority Badge */}
+                                                        {todo.priority && todo.priority !== "none" && (() => {
+                                                            const priorityOption = getPriorityOption(todo.priority);
+                                                            return (
+                                                                <View
+                                                                    className={cn(
+                                                                        "flex-row items-center gap-1 px-2 py-0.5 border-2",
+                                                                        selectedTodo?.id === todo.id
+                                                                            ? "border-white/50"
+                                                                            : `border-black ${priorityOption.colorClass}`
+                                                                    )}
+                                                                >
+                                                                    <Ionicons
+                                                                        name={priorityOption.icon as any}
+                                                                        size={10}
+                                                                        color={
+                                                                            selectedTodo?.id === todo.id
+                                                                                ? "white"
+                                                                                : todo.priority === "low"
+                                                                                    ? "black"
+                                                                                    : "white"
+                                                                        }
+                                                                    />
+                                                                    <Text
+                                                                        className={cn(
+                                                                            "text-xs font-black uppercase",
+                                                                            selectedTodo?.id === todo.id
+                                                                                ? "text-white/80"
+                                                                                : priorityOption.textColorClass
+                                                                        )}
+                                                                    >
+                                                                        {priorityOption.shortLabel}
+                                                                    </Text>
+                                                                </View>
+                                                            );
+                                                        })()}
                                                     </View>
                                                 </View>
                                             </View>

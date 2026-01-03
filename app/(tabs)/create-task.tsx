@@ -30,7 +30,8 @@ import { clsx } from "clsx";
 
 import DatePickerPanel from "@/components/DatePickerPanel";
 import SubtaskList from "@/components/SubTaskList";
-import { Todo, Subtask } from "@/types/todo";
+import PriorityPicker from "@/components/PriorityPicker";
+import { Todo, Subtask, Priority } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import { useTodoList } from "@/context/TodoListContext";
 import {
@@ -66,6 +67,7 @@ export default function CreateTaskScreen() {
     const [reminderDate, setReminderDate] = useState<string | undefined>();
     const [recurrence, setRecurrence] = useState<RecurrencePattern | undefined>();
     const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+    const [priority, setPriority] = useState<Priority | undefined>();
     const [existingTodo, setExistingTodo] = useState<Todo | null>(null);
     const [isLoading, setIsLoading] = useState(isEditing);
 
@@ -94,6 +96,7 @@ export default function CreateTaskScreen() {
                     setReminderDate(todo.reminderDate);
                     setRecurrence(todo.recurrence);
                     setSubtasks(todo.subtasks || []);
+                    setPriority(todo.priority);
                 }
             }
         } catch (e) {
@@ -141,6 +144,10 @@ export default function CreateTaskScreen() {
 
     const handleClearRecurrence = useCallback(() => {
         setRecurrence(undefined);
+    }, []);
+
+    const handleSetPriority = useCallback((newPriority: Priority) => {
+        setPriority(newPriority === "none" ? undefined : newPriority);
     }, []);
 
     const handleAddSubtask = useCallback((text: string) => {
@@ -208,6 +215,7 @@ export default function CreateTaskScreen() {
                             recurrence,
                             isRecurring: recurrence?.type !== "none" && !!recurrence,
                             subtasks,
+                            priority,
                         }
                         : t
                 );
@@ -224,6 +232,7 @@ export default function CreateTaskScreen() {
                     recurrence,
                     isRecurring: recurrence?.type !== "none" && !!recurrence,
                     subtasks,
+                    priority,
                 };
                 todos = [newTodo, ...todos];
             }
@@ -248,6 +257,7 @@ export default function CreateTaskScreen() {
         reminderDate,
         recurrence,
         subtasks,
+        priority,
         isEditing,
         existingTodo,
         selectedListId,
@@ -326,6 +336,17 @@ export default function CreateTaskScreen() {
                         numberOfLines={2}
                         textAlignVertical="top"
                         autoFocus={!isEditing}
+                    />
+                </Animated.View>
+
+                {/* Priority Section */}
+                <Animated.View
+                    entering={FadeInDown.delay(150).duration(300)}
+                    className="mb-6"
+                >
+                    <PriorityPicker
+                        priority={priority}
+                        onSetPriority={handleSetPriority}
                     />
                 </Animated.View>
 

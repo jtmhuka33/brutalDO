@@ -32,7 +32,7 @@ import * as Haptics from "expo-haptics";
 import TodoItem from "@/components/TodoItem";
 import ArchiveButton from "@/components/ArchiveButton";
 import ArchiveModal from "@/components/ArchiveModal";
-import { SortType, Todo, Subtask } from "@/types/todo";
+import { SortType, Todo, Subtask, getPriorityWeight } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
@@ -495,11 +495,42 @@ export default function TodoApp() {
                     if (a.dueDate && !b.dueDate) return -1;
                     if (!a.dueDate && b.dueDate) return 1;
                     return parseInt(b.id) - parseInt(a.id);
+                case "PRIORITY_DESC":
+                    // High priority first (lower weight = higher priority)
+                    const priorityDiffDesc = getPriorityWeight(a.priority) - getPriorityWeight(b.priority);
+                    if (priorityDiffDesc !== 0) return priorityDiffDesc;
+                    // Secondary sort by due date
+                    if (a.dueDate && b.dueDate) {
+                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                    }
+                    if (a.dueDate && !b.dueDate) return -1;
+                    if (!a.dueDate && b.dueDate) return 1;
+                    return parseInt(b.id) - parseInt(a.id);
+                case "PRIORITY_ASC":
+                    // Low priority first (higher weight = lower priority)
+                    const priorityDiffAsc = getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
+                    if (priorityDiffAsc !== 0) return priorityDiffAsc;
+                    // Secondary sort by due date
+                    if (a.dueDate && b.dueDate) {
+                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                    }
+                    if (a.dueDate && !b.dueDate) return -1;
+                    if (!a.dueDate && b.dueDate) return 1;
+                    return parseInt(b.id) - parseInt(a.id);
                 case "DEFAULT":
                 default:
-                    const priorityA = getDatePriority(a);
-                    const priorityB = getDatePriority(b);
-                    if (priorityA !== priorityB) return priorityA - priorityB;
+                    // Smart sort: Overdue → Today → Priority → Tomorrow → Future → No date
+                    const datePriorityA = getDatePriority(a);
+                    const datePriorityB = getDatePriority(b);
+
+                    // First, sort by date urgency
+                    if (datePriorityA !== datePriorityB) return datePriorityA - datePriorityB;
+
+                    // Within same date priority, sort by task priority
+                    const taskPriorityDiff = getPriorityWeight(a.priority) - getPriorityWeight(b.priority);
+                    if (taskPriorityDiff !== 0) return taskPriorityDiff;
+
+                    // Finally, sort by due date time or creation
                     if (a.dueDate && b.dueDate) {
                         return (
                             new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
