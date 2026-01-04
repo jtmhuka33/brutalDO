@@ -195,7 +195,7 @@ function formatDaysShort(days: number[]): string {
 }
 
 /**
- * Create the next recurring todo instance
+ * Create the next recurring instance
  */
 export function createNextRecurringTodo(
     completedTodo: Todo,
@@ -240,7 +240,7 @@ export function createNextRecurringTodo(
         parentRecurrenceId: completedTodo.parentRecurrenceId || completedTodo.id,
         recurrenceCount: (completedTodo.recurrenceCount || 0) + 1,
         priority: completedTodo.priority,
-        // Don't copy reminder - user should set new reminder if needed
+        reminders: [],
     };
 }
 

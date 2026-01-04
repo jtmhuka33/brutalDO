@@ -30,7 +30,7 @@ import { clsx } from "clsx";
 import DatePickerPanel from "@/components/DatePickerPanel";
 import SubtaskList from "@/components/SubTaskList";
 import PriorityPicker from "@/components/PriorityPicker";
-import { Todo, Subtask, Priority } from "@/types/todo";
+import { Todo, Subtask, Priority, Reminder, getReminders } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import { useTodoList } from "@/context/TodoListContext";
 import {
@@ -64,7 +64,7 @@ export default function CreateTaskScreen() {
 
     const [taskTitle, setTaskTitle] = useState("");
     const [dueDate, setDueDate] = useState<string | undefined>();
-    const [reminderDate, setReminderDate] = useState<string | undefined>();
+    const [reminders, setReminders] = useState<Reminder[]>([]);
     const [recurrence, setRecurrence] = useState<RecurrencePattern | undefined>();
     const [subtasks, setSubtasks] = useState<Subtask[]>([]);
     const [priority, setPriority] = useState<Priority | undefined>();
@@ -93,7 +93,8 @@ export default function CreateTaskScreen() {
                     setExistingTodo(todo);
                     setTaskTitle(todo.text);
                     setDueDate(todo.dueDate);
-                    setReminderDate(todo.reminderDate);
+                    // Load reminders (with migration from legacy format)
+                    setReminders(getReminders(todo));
                     setRecurrence(todo.recurrence);
                     setSubtasks(todo.subtasks || []);
                     setPriority(todo.priority);
@@ -124,18 +125,25 @@ export default function CreateTaskScreen() {
         setDueDate(undefined);
     }, []);
 
-    const handleSetReminder = useCallback(async (date: Date) => {
+    const handleAddReminder = useCallback(async (date: Date) => {
         if (date <= new Date()) {
             Alert.alert("Invalid Time", "Please select a time in the future.", [
                 { text: "OK" },
             ]);
             return;
         }
-        setReminderDate(date.toISOString());
+
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        const newReminder: Reminder = {
+            id: Date.now().toString(),
+            date: date.toISOString(),
+        };
+        setReminders((prev) => [...prev, newReminder]);
     }, []);
 
-    const handleClearReminder = useCallback(() => {
-        setReminderDate(undefined);
+    const handleRemoveReminder = useCallback((reminderId: string) => {
+        setReminders((prev) => prev.filter((r) => r.id !== reminderId));
     }, []);
 
     const handleSetRecurrence = useCallback((pattern: RecurrencePattern) => {
@@ -186,21 +194,41 @@ export default function CreateTaskScreen() {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             let todos: Todo[] = stored ? JSON.parse(stored) : [];
 
-            let notificationId: string | undefined;
-
-            // Schedule notification if reminder is set
-            if (reminderDate) {
-                // Cancel old notification if editing
-                if (existingTodo?.notificationId) {
+            // Cancel old notifications if editing
+            if (existingTodo) {
+                // Cancel legacy notification
+                if (existingTodo.notificationId) {
                     await cancelNotification(existingTodo.notificationId);
                 }
-                notificationId = await scheduleNotification(
-                    taskTitle.trim().toUpperCase(),
-                    new Date(reminderDate)
-                );
-            } else if (existingTodo?.notificationId) {
-                // Clear notification if reminder was removed
-                await cancelNotification(existingTodo.notificationId);
+                // Cancel all existing reminder notifications
+                const oldReminders = getReminders(existingTodo);
+                for (const reminder of oldReminders) {
+                    if (reminder.notificationId) {
+                        await cancelNotification(reminder.notificationId);
+                    }
+                }
+            }
+
+            // Schedule new notifications for all reminders
+            const scheduledReminders: Reminder[] = [];
+            for (const reminder of reminders) {
+                const reminderDate = new Date(reminder.date);
+                if (reminderDate > new Date()) {
+                    const notificationId = await scheduleNotification(
+                        taskTitle.trim().toUpperCase(),
+                        reminderDate
+                    );
+                    scheduledReminders.push({
+                        ...reminder,
+                        notificationId,
+                    });
+                } else {
+                    // Keep past reminders but without notification
+                    scheduledReminders.push({
+                        ...reminder,
+                        notificationId: undefined,
+                    });
+                }
             }
 
             if (isEditing && existingTodo) {
@@ -210,8 +238,11 @@ export default function CreateTaskScreen() {
                             ...t,
                             text: taskTitle.trim().toUpperCase(),
                             dueDate,
-                            reminderDate,
-                            notificationId,
+                            // Clear legacy fields
+                            reminderDate: undefined,
+                            notificationId: undefined,
+                            // Use new reminders array
+                            reminders: scheduledReminders,
                             recurrence,
                             isRecurring: recurrence?.type !== "none" && !!recurrence,
                             subtasks,
@@ -227,8 +258,7 @@ export default function CreateTaskScreen() {
                     colorVariant: Math.floor(Math.random() * CARD_COLORS_COUNT),
                     listId: selectedListId,
                     dueDate,
-                    reminderDate,
-                    notificationId,
+                    reminders: scheduledReminders,
                     recurrence,
                     isRecurring: recurrence?.type !== "none" && !!recurrence,
                     subtasks,
@@ -239,7 +269,6 @@ export default function CreateTaskScreen() {
 
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
 
-            // Navigate back
             if (router.canGoBack()) {
                 router.back();
             } else {
@@ -254,7 +283,7 @@ export default function CreateTaskScreen() {
     }, [
         taskTitle,
         dueDate,
-        reminderDate,
+        reminders,
         recurrence,
         subtasks,
         priority,
@@ -361,12 +390,12 @@ export default function CreateTaskScreen() {
                 >
                     <DatePickerPanel
                         dueDate={dueDate}
-                        reminderDate={reminderDate}
+                        reminders={reminders}
                         recurrence={recurrence}
                         onSetDueDate={handleSetDueDate}
                         onClearDueDate={handleClearDueDate}
-                        onSetReminder={handleSetReminder}
-                        onClearReminder={handleClearReminder}
+                        onAddReminder={handleAddReminder}
+                        onRemoveReminder={handleRemoveReminder}
                         onSetRecurrence={handleSetRecurrence}
                         onClearRecurrence={handleClearRecurrence}
                     />

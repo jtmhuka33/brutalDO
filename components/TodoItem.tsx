@@ -16,7 +16,7 @@ import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { Todo, getPriorityOption } from "@/types/todo";
+import { Todo, getPriorityOption, getReminders } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import {
     getRecurrenceShortLabel,
@@ -49,8 +49,6 @@ interface TodoItemProps {
     onToggle: (id: string) => void;
     onEdit: (todo: Todo) => void;
     onDelete: (id: string) => void;
-    onSetReminder: (id: string, date: Date) => void;
-    onClearReminder: (id: string) => void;
     onSetDueDate: (id: string, date: Date) => void;
     onClearDueDate: (id: string) => void;
     onSetRecurrence: (id: string, pattern: RecurrencePattern) => void;
@@ -215,6 +213,11 @@ export default function TodoItem({
     const subtaskCount = subtasks.length;
     const completedSubtasks = subtasks.filter((s) => s.completed).length;
 
+    // Get reminders (with migration support)
+    const reminders = getReminders(item);
+    const reminderCount = reminders.length;
+    const futureReminders = reminders.filter((r) => new Date(r.date) > new Date());
+
     // Priority
     const priorityOption = getPriorityOption(item.priority);
     const hasPriority = item.priority && item.priority !== "none";
@@ -345,9 +348,15 @@ export default function TodoItem({
                                         </Text>
                                     </View>
                                 )}
-                                {item.reminderDate && (
+                                {/* Reminders badge - shows count */}
+                                {reminderCount > 0 && (
                                     <View className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-green">
                                         <Ionicons name="alarm-sharp" size={12} color="black" />
+                                        {reminderCount > 1 && (
+                                            <Text className="text-xs font-black text-black">
+                                                {futureReminders.length}
+                                            </Text>
+                                        )}
                                     </View>
                                 )}
                                 {/* Subtask badge */}
@@ -359,7 +368,7 @@ export default function TodoItem({
                                         </Text>
                                     </View>
                                 )}
-                                {!item.dueDate && !hasRecurrence && subtaskCount === 0 && !hasPriority && (
+                                {!item.dueDate && !hasRecurrence && subtaskCount === 0 && !hasPriority && reminderCount === 0 && (
                                     <View className="flex-row mx-auto gap-1 opacity-50">
                                         <Ionicons
                                             name="calendar-outline"
@@ -443,20 +452,39 @@ export default function TodoItem({
                         </View>
                     </View>
 
-                    {/* Reminder */}
+                    {/* Reminders - Multiple */}
                     <View className="mb-3 flex-row items-start gap-3">
                         <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-green dark:border-neo-primary">
                             <Ionicons name="alarm-sharp" size={16} color="black" />
                         </View>
                         <View className="flex-1">
                             <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
-                                Reminder
+                                Reminders ({reminderCount})
                             </Text>
-                            <Text className="text-sm font-black uppercase text-black dark:text-black">
-                                {item.reminderDate
-                                    ? formatReminderFull(item.reminderDate)
-                                    : "Not set"}
-                            </Text>
+                            {reminderCount > 0 ? (
+                                <View className="mt-1 gap-1">
+                                    {reminders.map((reminder, idx) => {
+                                        const isPast = new Date(reminder.date) < new Date();
+                                        return (
+                                            <Text
+                                                key={reminder.id}
+                                                className={cn(
+                                                    "text-sm font-black uppercase",
+                                                    isPast
+                                                        ? "text-gray-500 line-through dark:text-gray-500"
+                                                        : "text-black dark:text-black"
+                                                )}
+                                            >
+                                                {idx + 1}. {formatReminderFull(reminder.date)}
+                                            </Text>
+                                        );
+                                    })}
+                                </View>
+                            ) : (
+                                <Text className="text-sm font-black uppercase text-black dark:text-black">
+                                    Not set
+                                </Text>
+                            )}
                         </View>
                     </View>
 

@@ -31,7 +31,7 @@ import * as Haptics from "expo-haptics";
 import TodoItem from "@/components/TodoItem";
 import ArchiveButton from "@/components/ArchiveButton";
 import ArchiveModal from "@/components/ArchiveModal";
-import { SortType, Todo, Subtask, getPriorityWeight } from "@/types/todo";
+import { Todo, Subtask, getPriorityWeight, getReminders } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
@@ -39,7 +39,6 @@ import { useBulkEdit } from "@/context/BulkEditContext";
 import {
     cancelNotification,
     registerForPushNotificationsAsync,
-    scheduleNotification,
 } from "@/utils/notifications";
 import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
 import SortSelector from "@/components/SortSelector";
@@ -274,6 +273,16 @@ export default function TodoApp() {
             const todo = todos.find((t) => t.id === id);
             if (!todo) return;
 
+            if (todo.notificationId) {
+                await cancelNotification(todo.notificationId);
+            }
+            const reminders = getReminders(todo);
+            for (const reminder of reminders) {
+                if (reminder.notificationId) {
+                    await cancelNotification(reminder.notificationId);
+                }
+            }
+
             if (!todo.completed && isRecurrenceActive(todo.recurrence)) {
                 const nextTodo = createNextRecurringTodo(
                     todo,
@@ -339,6 +348,13 @@ export default function TodoApp() {
                 await cancelNotification(todo.notificationId);
             }
 
+            const reminders = getReminders(todo);
+            for (const reminder of reminders) {
+                if (reminder.notificationId) {
+                    await cancelNotification(reminder.notificationId);
+                }
+            }
+
             setTodos((prev) => prev.filter((t) => t.id !== id));
             showDeleteToast(todo);
         },
@@ -360,53 +376,6 @@ export default function TodoApp() {
     const clearAllArchived = useCallback(() => {
         setTodos((prev) => prev.filter((t) => !t.archivedAt));
     }, []);
-
-    const handleSetReminder = useCallback(
-        async (id: string, date: Date) => {
-            const todo = todos.find((t) => t.id === id);
-            if (!todo) return;
-
-            if (date <= new Date()) {
-                Alert.alert("Invalid Time", "Please select a time in the future.", [
-                    { text: "OK" },
-                ]);
-                return;
-            }
-
-            if (todo.notificationId) {
-                await cancelNotification(todo.notificationId);
-            }
-
-            const notificationId = await scheduleNotification(todo.text, date);
-
-            setTodos((prev) =>
-                prev.map((t) =>
-                    t.id === id
-                        ? { ...t, reminderDate: date.toISOString(), notificationId }
-                        : t
-                )
-            );
-        },
-        [todos]
-    );
-
-    const handleClearReminder = useCallback(
-        async (id: string) => {
-            const todo = todos.find((t) => t.id === id);
-            if (!todo || !todo.notificationId) return;
-
-            await cancelNotification(todo.notificationId);
-
-            setTodos((prev) =>
-                prev.map((t) =>
-                    t.id === id
-                        ? { ...t, reminderDate: undefined, notificationId: undefined }
-                        : t
-                )
-            );
-        },
-        [todos]
-    );
 
     const handleSetDueDate = useCallback((id: string, date: Date) => {
         const dueDate = new Date(date);
@@ -555,8 +524,6 @@ export default function TodoApp() {
                 onToggle={archiveTodo}
                 onEdit={handleEditTask}
                 onDelete={deleteTodo}
-                onSetReminder={handleSetReminder}
-                onClearReminder={handleClearReminder}
                 onSetDueDate={handleSetDueDate}
                 onClearDueDate={handleClearDueDate}
                 onSetRecurrence={handleSetRecurrence}
@@ -570,8 +537,6 @@ export default function TodoApp() {
             archiveTodo,
             handleEditTask,
             deleteTodo,
-            handleSetReminder,
-            handleClearReminder,
             handleSetDueDate,
             handleClearDueDate,
             handleSetRecurrence,

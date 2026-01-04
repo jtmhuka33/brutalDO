@@ -13,107 +13,61 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 
 import RecurrencePicker from "./RecurrencePicker";
+import MultiReminderPicker from "./MultiReminderPicker";
 import { RecurrencePattern } from "@/types/recurrence";
+import { Reminder } from "@/types/todo";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
 }
 
 interface DatePickerPanelProps {
-    reminderDate?: string;
+    reminders: Reminder[];
     dueDate?: string;
     recurrence?: RecurrencePattern;
-    onSetReminder: (date: Date) => void;
-    onClearReminder: () => void;
+    onAddReminder: (date: Date) => void;
+    onRemoveReminder: (reminderId: string) => void;
     onSetDueDate: (date: Date) => void;
     onClearDueDate: () => void;
     onSetRecurrence: (pattern: RecurrencePattern) => void;
     onClearRecurrence: () => void;
 }
 
-type PickerMode = "reminder" | "dueDate" | null;
-
 export default function DatePickerPanel({
-                                            reminderDate,
+                                            reminders,
                                             dueDate,
                                             recurrence,
-                                            onSetReminder,
-                                            onClearReminder,
+                                            onAddReminder,
+                                            onRemoveReminder,
                                             onSetDueDate,
                                             onClearDueDate,
                                             onSetRecurrence,
                                             onClearRecurrence,
                                         }: DatePickerPanelProps) {
     const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-    const [pickerMode, setPickerMode] = useState<PickerMode>(null);
     const colorScheme = useColorScheme();
-
-    const showReminderPicker = useCallback(async () => {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setPickerMode("reminder");
-        setDatePickerVisibility(true);
-    }, []);
 
     const showDueDatePicker = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setPickerMode("dueDate");
         setDatePickerVisibility(true);
     }, []);
 
     const hideDatePicker = useCallback(() => {
         setDatePickerVisibility(false);
-        setPickerMode(null);
     }, []);
 
     const handleConfirm = useCallback(
         (date: Date) => {
-            if (pickerMode === "reminder") {
-                onSetReminder(date);
-            } else if (pickerMode === "dueDate") {
-                onSetDueDate(date);
-            }
+            onSetDueDate(date);
             hideDatePicker();
         },
-        [pickerMode, onSetReminder, onSetDueDate, hideDatePicker]
+        [onSetDueDate, hideDatePicker]
     );
-
-    const handleClearReminder = useCallback(async () => {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onClearReminder();
-    }, [onClearReminder]);
 
     const handleClearDueDate = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onClearDueDate();
     }, [onClearDueDate]);
-
-    const formatReminderDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const isToday = date.toDateString() === now.toDateString();
-        const isTomorrow =
-            date.toDateString() ===
-            new Date(now.getTime() + 86400000).toDateString();
-
-        const timeStr = date.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-        });
-
-        if (isToday) return `TODAY ${timeStr}`;
-        if (isTomorrow) return `TOMORROW ${timeStr}`;
-
-        return date
-            .toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-            })
-            .toUpperCase();
-    };
 
     const formatDueDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -141,7 +95,6 @@ export default function DatePickerPanel({
     const isDueDateOverdue = (dateString: string) => {
         const date = new Date(dateString);
         const now = new Date();
-        // Set both dates to start of day for comparison
         date.setHours(23, 59, 59, 999);
         return date < now;
     };
@@ -237,72 +190,22 @@ export default function DatePickerPanel({
                 onClearRecurrence={onClearRecurrence}
             />
 
-            {/* Reminder Section */}
-            <View className="gap-2 mt-2">
-                <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
-                    Reminder
-                </Text>
-
-                {reminderDate && (
-                    <View className="flex-row items-center justify-between border-5 border-black bg-neo-green p-4 shadow-brutal-sm dark:border-neo-primary dark:shadow-brutal-dark-sm">
-                        <View className="flex-row items-center gap-3 flex-1">
-                            <Ionicons
-                                name="notifications-sharp"
-                                size={24}
-                                color="black"
-                            />
-                            <Text className="flex-1 font-black uppercase text-black text-sm tracking-tight">
-                                {formatReminderDate(reminderDate)}
-                            </Text>
-                        </View>
-                        <Pressable
-                            onPress={handleClearReminder}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            className="h-10 w-10 items-center justify-center border-4 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
-                        >
-                            <Ionicons name="close-sharp" size={20} color="white" />
-                        </Pressable>
-                    </View>
-                )}
-
-                <Pressable
-                    onPress={showReminderPicker}
-                    className={cn(
-                        "flex-row items-center justify-center gap-3 border-5 border-black p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                        reminderDate
-                            ? "bg-gray-300 dark:bg-neo-dark-surface"
-                            : "bg-neo-secondary"
-                    )}
-                >
-                    <Ionicons
-                        name={reminderDate ? "time-sharp" : "alarm-sharp"}
-                        size={24}
-                        color="black"
-                    />
-                    <Text className="font-black uppercase tracking-tight text-black text-base">
-                        {reminderDate ? "CHANGE REMINDER" : "SET REMINDER"}
-                    </Text>
-                </Pressable>
+            {/* Multiple Reminders Section */}
+            <View className="mt-2">
+                <MultiReminderPicker
+                    reminders={reminders}
+                    onAddReminder={onAddReminder}
+                    onRemoveReminder={onRemoveReminder}
+                />
             </View>
 
-            {pickerMode === "reminder" ? (
-                <DateTimePickerModal
-                    isVisible={isDatePickerVisible}
-                    mode="datetime"
-                    onConfirm={handleConfirm}
-                    onCancel={hideDatePicker}
-                    minimumDate={new Date()}
-                    isDarkModeEnabled={colorScheme === "dark"}
-                />
-            ) : (
-                <DateTimePickerModal
-                    isVisible={isDatePickerVisible}
-                    mode="date"
-                    onConfirm={handleConfirm}
-                    onCancel={hideDatePicker}
-                    isDarkModeEnabled={colorScheme === "dark"}
-                />
-            )}
+            <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={handleConfirm}
+                onCancel={hideDatePicker}
+                isDarkModeEnabled={colorScheme === "dark"}
+            />
         </Animated.View>
     );
 }

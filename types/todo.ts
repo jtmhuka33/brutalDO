@@ -8,13 +8,22 @@ export interface Subtask {
     completed: boolean;
 }
 
+export interface Reminder {
+    id: string;
+    date: string;
+    notificationId?: string;
+}
+
 export interface Todo {
     id: string;
     text: string;
     completed: boolean;
     colorVariant?: number;
+    // Legacy single reminder fields (for migration)
     reminderDate?: string;
     notificationId?: string;
+    // New multiple reminders
+    reminders?: Reminder[];
     dueDate?: string;
     listId?: string;
     archivedAt?: string;
@@ -97,4 +106,30 @@ export const getPriorityWeight = (priority?: Priority): number => {
 
 export const getPriorityOption = (priority?: Priority) => {
     return PRIORITY_OPTIONS.find((p) => p.value === priority) || PRIORITY_OPTIONS[3];
+};
+
+/**
+ * Get all reminders from a task, including migration from legacy format
+ */
+export const getReminders = (todo: Todo): Reminder[] => {
+    // If new reminders array exists, use it
+    if (todo.reminders && todo.reminders.length > 0) {
+        return todo.reminders;
+    }
+    // Migrate from legacy single reminder
+    if (todo.reminderDate) {
+        return [{
+            id: `legacy-${todo.id}`,
+            date: todo.reminderDate,
+            notificationId: todo.notificationId,
+        }];
+    }
+    return [];
+};
+
+/**
+ * Check if a task has any active reminders
+ */
+export const hasReminders = (todo: Todo): boolean => {
+    return getReminders(todo).length > 0;
 };
