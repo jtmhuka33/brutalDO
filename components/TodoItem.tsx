@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { Todo, getPriorityOption } from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import {
@@ -95,10 +96,15 @@ export default function TodoItem({
 
     const scale = useSharedValue(1);
     const opacity = useSharedValue(1);
+    const zenButtonScale = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
         opacity: opacity.value,
+    }));
+
+    const zenButtonAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: zenButtonScale.value }],
     }));
 
     const handleToggle = useCallback(() => {
@@ -151,6 +157,17 @@ export default function TodoItem({
         },
         [onDeleteSubtask, item.id]
     );
+
+    const handleStartZenMode = useCallback(async () => {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        zenButtonScale.value = withTiming(0.9, TIMING_CONFIG_FAST, () => {
+            zenButtonScale.value = withTiming(1, TIMING_CONFIG_FAST);
+        });
+        router.push({
+            pathname: "/(tabs)/zen",
+            params: { taskId: item.id },
+        });
+    }, [item.id]);
 
     const formatDueDateBadge = (dateString: string) => {
         const priority = getDatePriority(dateString);
@@ -462,7 +479,7 @@ export default function TodoItem({
 
                     {/* Subtasks - Interactive */}
                     {subtaskCount > 0 && (
-                        <View className="flex-row items-start gap-3">
+                        <View className="mb-3 flex-row items-start gap-3">
                             <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-secondary dark:border-neo-primary">
                                 <Ionicons name="list-sharp" size={16} color="black" />
                             </View>
@@ -526,6 +543,19 @@ export default function TodoItem({
                             </View>
                         </View>
                     )}
+
+                    {/* Zen Mode Button */}
+                    <Animated.View style={zenButtonAnimatedStyle}>
+                        <Pressable
+                            onPress={handleStartZenMode}
+                            className="mt-4 flex-row items-center justify-center gap-3 border-5 border-black bg-neo-primary p-4 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
+                        >
+                            <Ionicons name="leaf-sharp" size={24} color="white" />
+                            <Text className="text-base font-black uppercase tracking-tight text-white">
+                                Start Zen Mode
+                            </Text>
+                        </Pressable>
+                    </Animated.View>
 
                     {/* Tap to edit hint */}
                     <View className="mt-4 flex-row items-center justify-center gap-2 border-3 border-dashed border-gray-400 bg-white/50 p-3 dark:border-neo-primary dark:bg-neo-dark-surface/50">

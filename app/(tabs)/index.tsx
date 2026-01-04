@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import UndoToast from "@/components/UndoToast";
 import { useToast } from "@/context/ToastContext";
-import ZenModeButton from "@/components/ZenModeButton";
 import BulkEditButton from "@/components/BulkEditButton";
 import BulkActionBar from "@/components/BulkActionBar";
 import {
@@ -638,9 +637,6 @@ export default function TodoApp() {
                     onToggle={handleToggleBulkMode}
                     selectedCount={selectedIds.size}
                 />
-
-                {/* Zen Mode Button */}
-                <ZenModeButton />
             </Animated.View>
 
             {/* Sort Selector OR Bulk Action Bar */}

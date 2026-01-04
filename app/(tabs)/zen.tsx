@@ -8,7 +8,7 @@ import {
     Keyboard,
     Alert,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -33,23 +33,8 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 const STORAGE_KEY = "@neo_brutal_todos_v2";
 const CARD_COLORS_COUNT = 6;
 
-const getDatePriority = (todo: Todo): number => {
-    if (!todo.dueDate) return 4;
-
-    const dueDate = new Date(todo.dueDate);
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-
-    const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) return 0;
-    if (diffDays === 0) return 1;
-    if (diffDays === 1) return 2;
-    return 3;
-};
-
 export default function ZenMode() {
+    const params = useLocalSearchParams<{ taskId?: string }>();
     const [todos, setTodos] = useState<Todo[]>([]);
     const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
     const [timerStarted, setTimerStarted] = useState(false);
@@ -58,8 +43,35 @@ export default function ZenMode() {
     const { selectedListId, selectedList, setSelectedListId } = useTodoList();
     const { activeTimer, clearActiveTimer, setActiveTimer } = usePomodoro();
 
+    // Load task directly if taskId is provided
+    const loadTaskById = useCallback(async (taskId: string) => {
+        try {
+            const stored = await AsyncStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const allTodos: Todo[] = JSON.parse(stored);
+                const task = allTodos.find(t => t.id === taskId && !t.archivedAt);
+
+                if (task) {
+                    const taskListId = task.listId || DEFAULT_LIST_ID;
+                    if (taskListId !== selectedListId) {
+                        setSelectedListId(taskListId);
+                    }
+
+                    setSelectedTodo(task);
+                    setTimerStarted(true);
+                    return true;
+                }
+            }
+            return false;
+        } catch (e) {
+            console.error("Failed to load task by ID:", e);
+            return false;
+        }
+    }, [selectedListId, setSelectedListId]);
+
     useEffect(() => {
-        const initFromActiveTimer = async () => {
+        const initFromActiveTimerOrParams = async () => {
+            // First check if there's an active timer
             if (activeTimer) {
                 try {
                     const stored = await AsyncStorage.getItem(STORAGE_KEY);
@@ -75,6 +87,8 @@ export default function ZenMode() {
 
                             setSelectedTodo(task);
                             setTimerStarted(true);
+                            setIsInitializing(false);
+                            return;
                         } else {
                             await clearActiveTimer();
                         }
@@ -83,18 +97,28 @@ export default function ZenMode() {
                     console.error("Failed to load task for active timer:", e);
                 }
             }
+
+            // Then check if a taskId was passed as a parameter
+            if (params.taskId) {
+                const loaded = await loadTaskById(params.taskId);
+                if (loaded) {
+                    setIsInitializing(false);
+                    return;
+                }
+            }
+
             setIsInitializing(false);
         };
 
-        initFromActiveTimer();
-    }, [activeTimer]);
+        initFromActiveTimerOrParams();
+    }, [activeTimer, params.taskId]);
 
     useFocusEffect(
         useCallback(() => {
-            if (!isInitializing) {
+            if (!isInitializing && !timerStarted) {
                 loadTodos();
             }
-        }, [selectedListId, isInitializing])
+        }, [selectedListId, isInitializing, timerStarted])
     );
 
     const loadTodos = async () => {
@@ -135,6 +159,22 @@ export default function ZenMode() {
         } catch (e) {
             console.error("Failed to load todos");
         }
+    };
+
+    const getDatePriority = (todo: Todo): number => {
+        if (!todo.dueDate) return 4;
+
+        const dueDate = new Date(todo.dueDate);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+
+        const diffDays = Math.floor((dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) return 0;
+        if (diffDays === 0) return 1;
+        if (diffDays === 1) return 2;
+        return 3;
     };
 
     const handleTaskSelect = async (todo: Todo) => {
@@ -277,6 +317,13 @@ export default function ZenMode() {
         setSelectedTodo(null);
         setActiveTimer(null);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Navigate back to main screen after completing task
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace("/(tabs)/");
+        }
     };
 
     const handleBack = async () => {
@@ -365,6 +412,7 @@ export default function ZenMode() {
         );
     }
 
+    // If timer is started (either from param or active timer), show the timer
     if (timerStarted && selectedTodo) {
         return (
             <View
@@ -386,6 +434,7 @@ export default function ZenMode() {
         );
     }
 
+    // Fallback: Show task selection if no task was provided or found
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View className="flex-1 bg-neo-bg dark:bg-neo-dark">
