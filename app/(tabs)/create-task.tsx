@@ -4,13 +4,12 @@ import {
     Text,
     TextInput,
     Pressable,
-    ScrollView,
     Alert,
     useColorScheme,
-    KeyboardAvoidingView,
     Platform,
     Keyboard,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -61,6 +60,7 @@ export default function CreateTaskScreen() {
     const colorScheme = useColorScheme();
     const { selectedListId } = useTodoList();
     const inputRef = useRef<TextInput>(null);
+    const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
 
     const [taskTitle, setTaskTitle] = useState("");
     const [dueDate, setDueDate] = useState<string | undefined>();
@@ -285,10 +285,7 @@ export default function CreateTaskScreen() {
     }
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            className="flex-1 bg-neo-bg dark:bg-neo-dark"
-        >
+        <View className="flex-1 bg-neo-bg dark:bg-neo-dark">
             <StatusBar style="auto" />
 
             {/* Header */}
@@ -309,13 +306,20 @@ export default function CreateTaskScreen() {
                 </View>
             </Animated.View>
 
-            <ScrollView
+            <KeyboardAwareScrollView
+                ref={scrollViewRef}
                 className="flex-1 px-6"
                 contentContainerStyle={{
                     paddingBottom: Math.max(insets.bottom, 24) + 100,
                 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
+                enableOnAndroid={true}
+                enableAutomaticScroll={true}
+                extraScrollHeight={Platform.OS === "ios" ? 120 : 80}
+                extraHeight={Platform.OS === "ios" ? 120 : 80}
+                keyboardOpeningTime={0}
+                enableResetScrollToCoords={false}
             >
                 {/* Task Title Input */}
                 <Animated.View
@@ -380,7 +384,7 @@ export default function CreateTaskScreen() {
                         onDeleteSubtask={handleDeleteSubtask}
                     />
                 </Animated.View>
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             {/* Create/Update Button - Fixed at bottom */}
             <Animated.View
@@ -418,6 +422,6 @@ export default function CreateTaskScreen() {
                     </Text>
                 </AnimatedPressable>
             </Animated.View>
-        </KeyboardAvoidingView>
+        </View>
     );
 }

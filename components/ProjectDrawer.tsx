@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
     View,
     Text,
@@ -7,6 +7,7 @@ import {
     ScrollView,
     Alert,
     useColorScheme,
+    Keyboard,
 } from "react-native";
 import { DrawerContentComponentProps } from "@react-navigation/drawer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,6 +41,8 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const { lists, selectedListId, setSelectedListId, addList, deleteList } = useTodoList();
+    const scrollViewRef = useRef<ScrollView>(null);
+    const inputRef = useRef<TextInput>(null);
 
     const [isAddingNew, setIsAddingNew] = useState(false);
     const [newListName, setNewListName] = useState("");
@@ -52,11 +55,27 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
 
     const handleAddList = useCallback(async () => {
         if (!newListName.trim()) return;
+        Keyboard.dismiss();
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         await addList(newListName);
         setNewListName("");
         setIsAddingNew(false);
     }, [newListName, addList]);
+
+    const handleStartAddingNew = useCallback(() => {
+        setIsAddingNew(true);
+        // Scroll to bottom after opening input
+        setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+            inputRef.current?.focus();
+        }, 100);
+    }, []);
+
+    const handleCancelAddNew = useCallback(() => {
+        Keyboard.dismiss();
+        setIsAddingNew(false);
+        setNewListName("");
+    }, []);
 
     const handleDeleteList = useCallback((listId: string, listName: string) => {
         if (listId === DEFAULT_LIST_ID) return;
@@ -77,6 +96,13 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
             ]
         );
     }, [deleteList]);
+
+    const handleInputFocus = useCallback(() => {
+        // Scroll to make input visible when focused
+        setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+    }, []);
 
     return (
         <View
@@ -101,9 +127,11 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
 
             {/* Lists */}
             <ScrollView
+                ref={scrollViewRef}
                 className="flex-1 px-6"
                 contentContainerStyle={{ paddingBottom: 24 }}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
             >
                 {lists.map((list, index) => {
                     const isSelected = selectedListId === list.id;
@@ -177,6 +205,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                         className="mb-4 border-5 border-dashed border-black bg-white p-4 dark:border-neo-primary dark:bg-neo-dark-surface"
                     >
                         <TextInput
+                            ref={inputRef}
                             value={newListName}
                             onChangeText={setNewListName}
                             placeholder="LIST NAME..."
@@ -185,6 +214,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                             autoFocus
                             returnKeyType="done"
                             onSubmitEditing={handleAddList}
+                            onFocus={handleInputFocus}
                         />
                         <View className="flex-row gap-3">
                             <Pressable
@@ -196,10 +226,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                                 </Text>
                             </Pressable>
                             <Pressable
-                                onPress={() => {
-                                    setIsAddingNew(false);
-                                    setNewListName("");
-                                }}
+                                onPress={handleCancelAddNew}
                                 className="items-center justify-center border-4 border-black bg-gray-300 p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-elevated dark:shadow-brutal-dark-sm"
                             >
                                 <Ionicons name="close-sharp" size={20} color={colorScheme === "dark" ? "white" : "black"} />
@@ -208,7 +235,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                     </Animated.View>
                 ) : (
                     <Pressable
-                        onPress={() => setIsAddingNew(true)}
+                        onPress={handleStartAddingNew}
                         className="mb-4 flex-row items-center justify-center gap-3 border-5 border-dashed border-gray-400 bg-transparent p-4 active:bg-gray-100 dark:border-neo-primary dark:active:bg-neo-dark-surface"
                     >
                         <Ionicons

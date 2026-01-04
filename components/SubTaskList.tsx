@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { View, Text, TextInput, Pressable, useColorScheme } from "react-native";
 import Animated, { FadeIn, Easing } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,12 +23,15 @@ export default function SubtaskList({
                                     }: SubtaskListProps) {
     const [newSubtaskText, setNewSubtaskText] = useState("");
     const colorScheme = useColorScheme();
+    const inputRef = useRef<TextInput>(null);
 
     const handleAddSubtask = useCallback(async () => {
         if (!newSubtaskText.trim()) return;
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onAddSubtask(newSubtaskText.trim().toUpperCase());
         setNewSubtaskText("");
+        // Keep focus on the input for quick multiple additions
+        inputRef.current?.focus();
     }, [newSubtaskText, onAddSubtask]);
 
     const completedCount = subtasks.filter((s) => s.completed).length;
@@ -67,6 +70,7 @@ export default function SubtaskList({
             {/* Add Subtask Input */}
             <View className="mt-3 flex-row gap-2">
                 <TextInput
+                    ref={inputRef}
                     value={newSubtaskText}
                     onChangeText={setNewSubtaskText}
                     placeholder="ADD SUBTASK..."
@@ -74,6 +78,7 @@ export default function SubtaskList({
                     className="flex-1 border-4 border-black bg-white p-3 text-sm font-black uppercase text-black dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white"
                     returnKeyType="done"
                     onSubmitEditing={handleAddSubtask}
+                    submitBehavior={"blurAndSubmit"}
                 />
                 <Pressable
                     onPress={handleAddSubtask}
