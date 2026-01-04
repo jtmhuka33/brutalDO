@@ -1,14 +1,12 @@
 // components/RecurrencePicker.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
     View,
     Text,
     Pressable,
     Modal,
-    TextInput,
     ScrollView,
     useColorScheme,
-    Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
@@ -28,9 +26,8 @@ import * as Haptics from "expo-haptics";
 import {
     RecurrencePattern,
     RecurrenceType,
-    RecurrenceUnit,
     RECURRENCE_OPTIONS,
-    RECURRENCE_UNIT_OPTIONS,
+    DAYS_OF_WEEK,
 } from "@/types/recurrence";
 import { formatRecurrencePattern } from "@/utils/recurrence";
 
@@ -57,9 +54,9 @@ export default function RecurrencePicker({
                                              onClearRecurrence,
                                          }: RecurrencePickerProps) {
     const [showModal, setShowModal] = useState(false);
-    const [showCustom, setShowCustom] = useState(false);
-    const [customInterval, setCustomInterval] = useState("1");
-    const [customUnit, setCustomUnit] = useState<RecurrenceUnit>("days");
+    const [showDayPicker, setShowDayPicker] = useState(false);
+    const [selectedType, setSelectedType] = useState<RecurrenceType | null>(null);
+    const [selectedDays, setSelectedDays] = useState<number[]>([]);
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
     const [endDate, setEndDate] = useState<Date | null>(null);
     const colorScheme = useColorScheme();
@@ -82,16 +79,10 @@ export default function RecurrencePicker({
 
     const openModal = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        // Reset custom state when opening modal
-        if (recurrence?.type === "custom") {
-            setCustomInterval(recurrence.interval?.toString() || "1");
-            setCustomUnit(recurrence.unit || "days");
-            setShowCustom(true);
-        } else {
-            setShowCustom(false);
-            setCustomInterval("1");
-            setCustomUnit("days");
-        }
+        // Reset state when opening modal
+        setShowDayPicker(false);
+        setSelectedType(null);
+        setSelectedDays(recurrence?.daysOfWeek || []);
         if (recurrence?.endDate) {
             setEndDate(new Date(recurrence.endDate));
         } else {
@@ -102,7 +93,8 @@ export default function RecurrencePicker({
 
     const closeModal = useCallback(() => {
         setShowModal(false);
-        setShowCustom(false);
+        setShowDayPicker(false);
+        setSelectedType(null);
         setShowEndDatePicker(false);
     }, []);
 
@@ -116,38 +108,56 @@ export default function RecurrencePicker({
                 return;
             }
 
-            if (type === "custom") {
-                setShowCustom(true);
-                return;
-            }
+            const option = RECURRENCE_OPTIONS.find(o => o.type === type);
 
-            const pattern: RecurrencePattern = {
-                type,
-                endDate: endDate?.toISOString(),
-            };
-            onSetRecurrence(pattern);
-            closeModal();
+            if (option?.showDayPicker) {
+                // Show day picker for weekly, biweekly, custom
+                setSelectedType(type);
+                // Pre-select current day if no days selected
+                if (selectedDays.length === 0) {
+                    const today = new Date().getDay();
+                    setSelectedDays([today]);
+                }
+                setShowDayPicker(true);
+            } else {
+                // Direct selection for daily, weekdays, monthly, yearly
+                const pattern: RecurrencePattern = {
+                    type,
+                    endDate: endDate?.toISOString(),
+                };
+                onSetRecurrence(pattern);
+                closeModal();
+            }
         },
-        [onSetRecurrence, onClearRecurrence, closeModal, endDate]
+        [onSetRecurrence, onClearRecurrence, closeModal, endDate, selectedDays]
     );
 
-    const handleSaveCustom = useCallback(async () => {
+    const handleToggleDay = useCallback(async (day: number) => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setSelectedDays(prev => {
+            if (prev.includes(day)) {
+                // Don't allow deselecting all days
+                if (prev.length === 1) return prev;
+                return prev.filter(d => d !== day);
+            } else {
+                return [...prev, day].sort((a, b) => a - b);
+            }
+        });
+    }, []);
+
+    const handleSaveDays = useCallback(async () => {
+        if (!selectedType || selectedDays.length === 0) return;
+
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        const interval = parseInt(customInterval, 10);
-        if (isNaN(interval) || interval < 1) {
-            return;
-        }
-
         const pattern: RecurrencePattern = {
-            type: "custom",
-            interval,
-            unit: customUnit,
+            type: selectedType,
+            daysOfWeek: selectedDays,
             endDate: endDate?.toISOString(),
         };
         onSetRecurrence(pattern);
         closeModal();
-    }, [customInterval, customUnit, endDate, onSetRecurrence, closeModal]);
+    }, [selectedType, selectedDays, endDate, onSetRecurrence, closeModal]);
 
     const handleOpenEndDatePicker = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -169,6 +179,12 @@ export default function RecurrencePicker({
     }, []);
 
     const hasRecurrence = recurrence && recurrence.type !== "none";
+
+    const selectedTypeName = useMemo(() => {
+        if (!selectedType) return "";
+        const option = RECURRENCE_OPTIONS.find(o => o.type === selectedType);
+        return option?.label || "";
+    }, [selectedType]);
 
     return (
         <View className="gap-2">
@@ -257,14 +273,14 @@ export default function RecurrencePicker({
                                 {/* Header */}
                                 <View className="flex-row items-center justify-between border-b-5 border-black dark:border-neo-primary bg-neo-accent p-4">
                                     <Text className="text-xl font-black uppercase tracking-tight text-black">
-                                        {showCustom ? "Custom Repeat" : "Repeat"}
+                                        {showDayPicker ? `${selectedTypeName}` : "Repeat"}
                                     </Text>
                                     <Pressable
-                                        onPress={showCustom ? () => setShowCustom(false) : closeModal}
+                                        onPress={showDayPicker ? () => setShowDayPicker(false) : closeModal}
                                         className="h-10 w-10 items-center justify-center border-4 border-black bg-white"
                                     >
                                         <Ionicons
-                                            name={showCustom ? "arrow-back-sharp" : "close-sharp"}
+                                            name={showDayPicker ? "arrow-back-sharp" : "close-sharp"}
                                             size={20}
                                             color="black"
                                         />
@@ -276,82 +292,82 @@ export default function RecurrencePicker({
                                     contentContainerStyle={{ padding: 16 }}
                                     keyboardShouldPersistTaps="handled"
                                 >
-                                    {showCustom ? (
-                                        // Custom Recurrence Form
+                                    {showDayPicker ? (
+                                        // Day of Week Picker
                                         <View className="gap-6">
-                                            {/* Interval Input */}
+                                            {/* Day Selection */}
                                             <View>
                                                 <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
-                                                    Every
+                                                    Select Days
                                                 </Text>
-                                                <View className="gap-4">
-                                                    {/* Number Input */}
-                                                    <TextInput
-                                                        value={customInterval}
-                                                        onChangeText={setCustomInterval}
-                                                        keyboardType="number-pad"
-                                                        className="border-5 border-black bg-white p-4 text-center text-2xl font-black text-black dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white"
-                                                        placeholder="1"
-                                                        placeholderTextColor={colorScheme === "dark" ? "#666" : "#999"}
-                                                    />
+                                                <View className="flex-row justify-between gap-2">
+                                                    {DAYS_OF_WEEK.map((day, index) => {
+                                                        const isSelected = selectedDays.includes(day.value);
+                                                        return (
+                                                            <Pressable
+                                                                key={day.value}
+                                                                onPress={() => handleToggleDay(day.value)}
+                                                                className={cn(
+                                                                    "flex-1 aspect-square items-center justify-center border-4 border-black shadow-brutal-sm active:translate-x-[2px] active:translate-y-[2px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
+                                                                    isSelected
+                                                                        ? "bg-neo-purple"
+                                                                        : "bg-white dark:bg-neo-dark-surface",
+                                                                    index % 2 === 0 && "-rotate-2",
+                                                                    index % 2 === 1 && "rotate-2"
+                                                                )}
+                                                            >
+                                                                <Text
+                                                                    className={cn(
+                                                                        "text-sm font-black uppercase",
+                                                                        isSelected
+                                                                            ? "text-white"
+                                                                            : "text-black dark:text-white"
+                                                                    )}
+                                                                >
+                                                                    {day.shortLabel}
+                                                                </Text>
+                                                            </Pressable>
+                                                        );
+                                                    })}
+                                                </View>
+                                                <Text className="mt-2 text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
+                                                    {selectedDays.length === 0
+                                                        ? "Select at least one day"
+                                                        : `${selectedDays.length} day${selectedDays.length > 1 ? "s" : ""} selected`
+                                                    }
+                                                </Text>
+                                            </View>
 
-                                                    {/* Unit Selection - 2x2 Grid */}
-                                                    <View className="gap-3">
-                                                        <View className="flex-row gap-3">
-                                                            {RECURRENCE_UNIT_OPTIONS.slice(0, 2).map((option) => (
-                                                                <Pressable
-                                                                    key={option.unit}
-                                                                    onPress={() => setCustomUnit(option.unit)}
-                                                                    className={cn(
-                                                                        "flex-1 items-center justify-center border-4 border-black p-4 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
-                                                                        customUnit === option.unit
-                                                                            ? "bg-neo-purple"
-                                                                            : "bg-white dark:bg-neo-dark-surface"
-                                                                    )}
-                                                                >
-                                                                    <Text
-                                                                        className={cn(
-                                                                            "text-sm font-black uppercase",
-                                                                            customUnit === option.unit
-                                                                                ? "text-white"
-                                                                                : "text-black dark:text-white"
-                                                                        )}
-                                                                    >
-                                                                        {parseInt(customInterval, 10) === 1
-                                                                            ? option.singularLabel
-                                                                            : option.label}
-                                                                    </Text>
-                                                                </Pressable>
-                                                            ))}
-                                                        </View>
-                                                        <View className="flex-row gap-3">
-                                                            {RECURRENCE_UNIT_OPTIONS.slice(2, 4).map((option) => (
-                                                                <Pressable
-                                                                    key={option.unit}
-                                                                    onPress={() => setCustomUnit(option.unit)}
-                                                                    className={cn(
-                                                                        "flex-1 items-center justify-center border-4 border-black p-4 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
-                                                                        customUnit === option.unit
-                                                                            ? "bg-neo-purple"
-                                                                            : "bg-white dark:bg-neo-dark-surface"
-                                                                    )}
-                                                                >
-                                                                    <Text
-                                                                        className={cn(
-                                                                            "text-sm font-black uppercase",
-                                                                            customUnit === option.unit
-                                                                                ? "text-white"
-                                                                                : "text-black dark:text-white"
-                                                                        )}
-                                                                    >
-                                                                        {parseInt(customInterval, 10) === 1
-                                                                            ? option.singularLabel
-                                                                            : option.label}
-                                                                    </Text>
-                                                                </Pressable>
-                                                            ))}
-                                                        </View>
-                                                    </View>
+                                            {/* Quick Select Buttons */}
+                                            <View>
+                                                <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                                                    Quick Select
+                                                </Text>
+                                                <View className="flex-row gap-3">
+                                                    <Pressable
+                                                        onPress={() => setSelectedDays([1, 2, 3, 4, 5])}
+                                                        className="flex-1 items-center justify-center border-4 border-black bg-neo-secondary p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
+                                                    >
+                                                        <Text className="text-xs font-black uppercase text-black">
+                                                            Weekdays
+                                                        </Text>
+                                                    </Pressable>
+                                                    <Pressable
+                                                        onPress={() => setSelectedDays([0, 6])}
+                                                        className="flex-1 items-center justify-center border-4 border-black bg-neo-orange p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
+                                                    >
+                                                        <Text className="text-xs font-black uppercase text-white">
+                                                            Weekend
+                                                        </Text>
+                                                    </Pressable>
+                                                    <Pressable
+                                                        onPress={() => setSelectedDays([0, 1, 2, 3, 4, 5, 6])}
+                                                        className="flex-1 items-center justify-center border-4 border-black bg-neo-green p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
+                                                    >
+                                                        <Text className="text-xs font-black uppercase text-black">
+                                                            All Days
+                                                        </Text>
+                                                    </Pressable>
                                                 </View>
                                             </View>
 
@@ -401,16 +417,25 @@ export default function RecurrencePicker({
 
                                             {/* Save Button */}
                                             <Pressable
-                                                onPress={handleSaveCustom}
-                                                className="items-center justify-center border-5 border-black bg-neo-green p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
+                                                onPress={handleSaveDays}
+                                                disabled={selectedDays.length === 0}
+                                                className={cn(
+                                                    "items-center justify-center border-5 border-black p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
+                                                    selectedDays.length > 0
+                                                        ? "bg-neo-green"
+                                                        : "bg-gray-300 dark:bg-neo-dark-surface opacity-50"
+                                                )}
                                             >
-                                                <Text className="text-lg font-black uppercase text-black">
-                                                    Save Custom
+                                                <Text className={cn(
+                                                    "text-lg font-black uppercase",
+                                                    selectedDays.length > 0 ? "text-black" : "text-gray-500"
+                                                )}>
+                                                    Save Schedule
                                                 </Text>
                                             </Pressable>
                                         </View>
                                     ) : (
-                                        // Recurrence Options
+                                        // Recurrence Type Options
                                         <View className="gap-3">
                                             {RECURRENCE_OPTIONS.map((option, index) => {
                                                 const isSelected = recurrence?.type === option.type;
@@ -452,6 +477,18 @@ export default function RecurrencePicker({
                                                             >
                                                                 {option.label}
                                                             </Text>
+                                                            {option.showDayPicker && (
+                                                                <Text
+                                                                    className={cn(
+                                                                        "text-xs font-black uppercase tracking-wider mt-1",
+                                                                        isSelected
+                                                                            ? "text-white/70"
+                                                                            : "text-gray-500 dark:text-gray-400"
+                                                                    )}
+                                                                >
+                                                                    Tap to choose days →
+                                                                </Text>
+                                                            )}
                                                         </View>
                                                         {isSelected && (
                                                             <View className="h-8 w-8 items-center justify-center border-3 border-black bg-white dark:border-neo-primary">
@@ -462,7 +499,7 @@ export default function RecurrencePicker({
                                                 );
                                             })}
 
-                                            {/* End Date Option (when not custom) */}
+                                            {/* End Date Option */}
                                             <View className="mt-4 border-t-4 border-dashed border-gray-300 pt-4 dark:border-gray-600">
                                                 <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
                                                     End Date (Optional)
@@ -516,7 +553,7 @@ export default function RecurrencePicker({
                     </Animated.View>
                 </Pressable>
 
-                {/* End Date Picker - Inside Modal but rendered on top */}
+                {/* End Date Picker */}
                 <DateTimePickerModal
                     isVisible={showEndDatePicker}
                     mode="date"

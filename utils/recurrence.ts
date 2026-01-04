@@ -1,5 +1,5 @@
-import { RecurrencePattern, RecurrenceType } from "@/types/recurrence";
-import { Todo } from "@/types/todo";
+import {DAYS_OF_WEEK, RecurrencePattern} from "@/types/recurrence";
+import {Todo} from "@/types/todo";
 
 /**
  * Calculate the next occurrence date based on the recurrence pattern
@@ -25,12 +25,14 @@ export function getNextOccurrenceDate(
             break;
 
         case "weekly":
-            next.setDate(next.getDate() + 7);
-            break;
+            return getNextDayOfWeekOccurrence(currentDate, pattern.daysOfWeek, 1);
 
         case "biweekly":
-            next.setDate(next.getDate() + 14);
-            break;
+            return getNextDayOfWeekOccurrence(currentDate, pattern.daysOfWeek, 2);
+
+        case "custom":
+            // Custom now means specific days of the week (weekly pattern)
+            return getNextDayOfWeekOccurrence(currentDate, pattern.daysOfWeek, 1);
 
         case "monthly":
             next.setMonth(next.getMonth() + 1);
@@ -38,25 +40,6 @@ export function getNextOccurrenceDate(
 
         case "yearly":
             next.setFullYear(next.getFullYear() + 1);
-            break;
-
-        case "custom":
-            if (pattern.interval && pattern.unit) {
-                switch (pattern.unit) {
-                    case "days":
-                        next.setDate(next.getDate() + pattern.interval);
-                        break;
-                    case "weeks":
-                        next.setDate(next.getDate() + pattern.interval * 7);
-                        break;
-                    case "months":
-                        next.setMonth(next.getMonth() + pattern.interval);
-                        break;
-                    case "years":
-                        next.setFullYear(next.getFullYear() + pattern.interval);
-                        break;
-                }
-            }
             break;
     }
 
@@ -67,6 +50,49 @@ export function getNextOccurrenceDate(
         if (next > endDate) {
             return null;
         }
+    }
+
+    return next;
+}
+
+/**
+ * Get the next occurrence based on selected days of the week
+ */
+function getNextDayOfWeekOccurrence(
+    currentDate: Date,
+    daysOfWeek: number[] | undefined,
+    weekInterval: number
+): Date | null {
+    if (!daysOfWeek || daysOfWeek.length === 0) {
+        // Default to same day next week/biweekly
+        const next = new Date(currentDate);
+        next.setDate(next.getDate() + (7 * weekInterval));
+        return next;
+    }
+
+    const sortedDays = [...daysOfWeek].sort((a, b) => a - b);
+    const currentDayOfWeek = currentDate.getDay();
+    const next = new Date(currentDate);
+
+    // Find the next day in the pattern
+    let foundNextDay = false;
+    for (const day of sortedDays) {
+        if (day > currentDayOfWeek) {
+            // Found a day later this week
+            const daysToAdd = day - currentDayOfWeek;
+            next.setDate(next.getDate() + daysToAdd);
+            foundNextDay = true;
+            break;
+        }
+    }
+
+    if (!foundNextDay) {
+        // Wrap to the first day of the pattern in the next cycle
+        const firstDay = sortedDays[0];
+        const daysUntilNextCycle = (7 - currentDayOfWeek) + firstDay;
+        // Add additional weeks for biweekly (weekInterval - 1 extra weeks)
+        const totalDays = daysUntilNextCycle + (7 * (weekInterval - 1));
+        next.setDate(next.getDate() + totalDays);
     }
 
     return next;
@@ -84,25 +110,43 @@ export function formatRecurrencePattern(pattern: RecurrencePattern): string {
         case "weekdays":
             return "Weekdays";
         case "weekly":
+            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
+                return `Weekly on ${formatDaysOfWeek(pattern.daysOfWeek)}`;
+            }
             return "Every week";
         case "biweekly":
+            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
+                return `Biweekly on ${formatDaysOfWeek(pattern.daysOfWeek)}`;
+            }
             return "Every 2 weeks";
         case "monthly":
             return "Every month";
         case "yearly":
             return "Every year";
         case "custom":
-            if (pattern.interval && pattern.unit) {
-                const unitLabel =
-                    pattern.interval === 1
-                        ? pattern.unit.slice(0, -1) // Remove 's' for singular
-                        : pattern.unit;
-                return `Every ${pattern.interval} ${unitLabel}`;
+            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
+                return formatDaysOfWeek(pattern.daysOfWeek);
             }
-            return "Custom";
+            return "Custom days";
         default:
             return "Unknown";
     }
+}
+
+/**
+ * Format days of week array to readable string
+ */
+function formatDaysOfWeek(days: number[]): string {
+    if (days.length === 0) return "";
+
+    const sortedDays = [...days].sort((a, b) => a - b);
+    const dayNames = sortedDays.map(d => DAYS_OF_WEEK[d].label.substring(0, 3));
+
+    if (dayNames.length === 7) return "Every day";
+    if (dayNames.length === 1) return dayNames[0];
+    if (dayNames.length === 2) return dayNames.join(" & ");
+
+    return dayNames.slice(0, -1).join(", ") + " & " + dayNames[dayNames.length - 1];
 }
 
 /**
@@ -117,21 +161,37 @@ export function getRecurrenceShortLabel(pattern: RecurrencePattern): string {
         case "weekdays":
             return "M-F";
         case "weekly":
+            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0 && pattern.daysOfWeek.length < 7) {
+                return formatDaysShort(pattern.daysOfWeek);
+            }
             return "WEEKLY";
         case "biweekly":
+            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0 && pattern.daysOfWeek.length < 7) {
+                return `2W ${formatDaysShort(pattern.daysOfWeek)}`;
+            }
             return "2 WEEKS";
         case "monthly":
             return "MONTHLY";
         case "yearly":
             return "YEARLY";
         case "custom":
-            if (pattern.interval && pattern.unit) {
-                return `${pattern.interval}${pattern.unit.charAt(0).toUpperCase()}`;
+            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
+                return formatDaysShort(pattern.daysOfWeek);
             }
             return "CUSTOM";
         default:
             return "?";
     }
+}
+
+/**
+ * Format days to short form (e.g., "MWF")
+ */
+function formatDaysShort(days: number[]): string {
+    const sortedDays = [...days].sort((a, b) => a - b);
+    // Use unique identifiers to distinguish S (Sun) from S (Sat)
+    const shortLabels = ["Su", "M", "Tu", "W", "Th", "F", "Sa"];
+    return sortedDays.map(d => shortLabels[d]).join("");
 }
 
 /**
@@ -159,21 +219,29 @@ export function createNextRecurringTodo(
     // Set the due date to end of day
     nextDueDate.setHours(23, 59, 59, 999);
 
-    const newTodo: Todo = {
+    // Check end date
+    if (completedTodo.recurrence.endDate) {
+        const endDate = new Date(completedTodo.recurrence.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        if (nextDueDate > endDate) {
+            return null;
+        }
+    }
+
+    return {
         id: Date.now().toString(),
         text: completedTodo.text,
         completed: false,
         colorVariant: colorVariant,
         listId: completedTodo.listId,
         dueDate: nextDueDate.toISOString(),
-        recurrence: { ...completedTodo.recurrence },
+        recurrence: {...completedTodo.recurrence},
         isRecurring: true,
         parentRecurrenceId: completedTodo.parentRecurrenceId || completedTodo.id,
         recurrenceCount: (completedTodo.recurrenceCount || 0) + 1,
+        priority: completedTodo.priority,
         // Don't copy reminder - user should set new reminder if needed
     };
-
-    return newTodo;
 }
 
 /**
