@@ -1,10 +1,10 @@
 // components/DatePickerPanel.tsx
-import React, { useState, useCallback } from "react";
-import { View, Text, Pressable, useColorScheme } from "react-native";
+import React, {useState, useCallback} from "react";
+import {View, Text, Pressable, useColorScheme} from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { Ionicons } from "@expo/vector-icons";
-import { twMerge } from "tailwind-merge";
-import { clsx } from "clsx";
+import {Ionicons} from "@expo/vector-icons";
+import {twMerge} from "tailwind-merge";
+import {clsx} from "clsx";
 import Animated, {
     FadeIn,
     FadeOut,
@@ -14,8 +14,8 @@ import * as Haptics from "expo-haptics";
 
 import RecurrencePicker from "./RecurrencePicker";
 import MultiReminderPicker from "./MultiReminderPicker";
-import { RecurrencePattern } from "@/types/recurrence";
-import { Reminder } from "@/types/todo";
+import {RecurrencePattern} from "@/types/recurrence";
+import {Reminder} from "@/types/todo";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -107,7 +107,7 @@ export default function DatePickerPanel({
         >
             {/* Due Date Section */}
             <View className="gap-2">
-                <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-100">
                     Due Date
                 </Text>
 
@@ -146,7 +146,7 @@ export default function DatePickerPanel({
                         </View>
                         <Pressable
                             onPress={handleClearDueDate}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                             className={cn(
                                 "h-10 w-10 items-center justify-center border-4 border-black shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm",
                                 isDueDateOverdue(dueDate)
@@ -167,15 +167,13 @@ export default function DatePickerPanel({
                     onPress={showDueDatePicker}
                     className={cn(
                         "flex-row items-center justify-center gap-3 border-5 border-black p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                        dueDate
-                            ? "bg-gray-300 dark:bg-neo-dark-surface"
-                            : "bg-neo-accent"
+                        "bg-neo-accent"
                     )}
                 >
                     <Ionicons
                         name={dueDate ? "calendar-outline" : "calendar-sharp"}
                         size={24}
-                        color="black"
+                        color={'black'}
                     />
                     <Text className="font-black uppercase tracking-tight text-black text-base">
                         {dueDate ? "CHANGE DUE DATE" : "SET DUE DATE"}

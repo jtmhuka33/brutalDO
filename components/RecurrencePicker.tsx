@@ -241,7 +241,7 @@ export default function RecurrencePicker({
                 <Ionicons
                     name={hasRecurrence ? "repeat-outline" : "repeat-sharp"}
                     size={24}
-                    color={hasRecurrence ? "black" : "white"}
+                    color={colorScheme === 'light' ? "black" : "white"}
                 />
                 <Text
                     className={cn(

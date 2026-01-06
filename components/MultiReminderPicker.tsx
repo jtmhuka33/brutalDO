@@ -213,9 +213,9 @@ export default function MultiReminderPicker({
                 <Ionicons
                     name={reminders.length > 0 ? "add-sharp" : "alarm-sharp"}
                     size={24}
-                    color="black"
+                    color={colorScheme === 'light' ? "black" : "white"}
                 />
-                <Text className="font-black uppercase tracking-tight text-black text-base">
+                <Text className={`font-black uppercase tracking-tight text-base ${colorScheme === 'dark' ? 'text-white' : 'text-black'}`}>
                     {reminders.length > 0 ? "ADD ANOTHER REMINDER" : "SET REMINDER"}
                 </Text>
             </AnimatedPressable>

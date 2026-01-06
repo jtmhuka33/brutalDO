@@ -110,7 +110,7 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
                         <Text className="text-base font-black uppercase tracking-tight text-black dark:text-white">
                             Sort: {activeOption.label}
                         </Text>
-                        <Text className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <Text className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-200">
                             {SORT_DESCRIPTIONS[activeSort]}
                         </Text>
                     </View>
@@ -173,7 +173,7 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
                                     <Text
                                         className={cn(
                                             "text-xs font-black uppercase tracking-wider",
-                                            isActive ? "text-white/70" : "text-gray-500 dark:text-gray-400"
+                                            isActive ? "text-white/70" : "text-gray-500 dark:text-gray-200"
                                         )}
                                     >
                                         {SORT_DESCRIPTIONS[option.value]}

@@ -37,7 +37,7 @@ const LIST_COLORS = [
 ];
 
 export default function ProjectDrawer(props: DrawerContentComponentProps) {
-    const { navigation } = props; // Use navigation from props
+    const { navigation } = props;
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const { lists, selectedListId, setSelectedListId, addList, deleteList } = useTodoList();
@@ -50,7 +50,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
     const handleSelectList = useCallback(async (listId: string) => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setSelectedListId(listId);
-        navigation.closeDrawer(); // Use navigation from props
+        navigation.closeDrawer();
     }, [setSelectedListId, navigation]);
 
     const handleAddList = useCallback(async () => {
@@ -64,7 +64,6 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
 
     const handleStartAddingNew = useCallback(() => {
         setIsAddingNew(true);
-        // Scroll to bottom after opening input
         setTimeout(() => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
             inputRef.current?.focus();
@@ -98,7 +97,6 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
     }, [deleteList]);
 
     const handleInputFocus = useCallback(() => {
-        // Scroll to make input visible when focused
         setTimeout(() => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
         }, 100);
@@ -120,7 +118,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                         Projects
                     </Text>
                 </View>
-                <Text className="mt-2 text-sm font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                <Text className="mt-2 text-sm font-black uppercase tracking-widest text-gray-500 dark:text-gray-200">
                     Swipe to close
                 </Text>
             </Animated.View>
@@ -209,7 +207,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                             value={newListName}
                             onChangeText={setNewListName}
                             placeholder="LIST NAME..."
-                            placeholderTextColor={colorScheme === "dark" ? "#666" : "#999"}
+                            placeholderTextColor={colorScheme === "dark" ? "#888" : "#999"}
                             className="mb-4 border-4 border-black bg-neo-bg p-3 text-base font-black uppercase text-black dark:border-neo-primary dark:bg-neo-dark dark:text-white"
                             autoFocus
                             returnKeyType="done"
@@ -243,7 +241,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                             size={24}
                             color={colorScheme === "dark" ? "#FF0055" : "#666"}
                         />
-                        <Text className="text-base font-black uppercase tracking-tight text-gray-500 dark:text-gray-400">
+                        <Text className="text-base font-black uppercase tracking-tight text-gray-500 dark:text-gray-100">
                             New Project
                         </Text>
                     </Pressable>

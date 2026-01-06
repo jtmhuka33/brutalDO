@@ -44,7 +44,7 @@ export default function SubtaskList({
         >
             {/* Header */}
             <View className="mb-3 flex-row items-center justify-between">
-                <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-100">
                     Subtasks
                 </Text>
                 {totalCount > 0 && (
@@ -74,7 +74,7 @@ export default function SubtaskList({
                     value={newSubtaskText}
                     onChangeText={setNewSubtaskText}
                     placeholder="ADD SUBTASK..."
-                    placeholderTextColor={colorScheme === "dark" ? "#666" : "#999"}
+                    placeholderTextColor={colorScheme === "dark" ? "#888" : "#999"}
                     className="flex-1 border-4 border-black bg-white p-3 text-sm font-black uppercase text-black dark:border-neo-primary dark:bg-neo-dark-surface dark:text-white"
                     returnKeyType="done"
                     onSubmitEditing={handleAddSubtask}

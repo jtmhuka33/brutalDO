@@ -64,7 +64,7 @@ export default function SubtaskItem({
                 className={cn(
                     "flex-1 text-sm font-black uppercase tracking-tight",
                     subtask.completed
-                        ? "text-gray-400 line-through dark:text-gray-500"
+                        ? "text-gray-400 line-through dark:text-gray-300"
                         : "text-black dark:text-white"
                 )}
                 numberOfLines={2}

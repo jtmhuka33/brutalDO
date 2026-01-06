@@ -1,4 +1,3 @@
-// components/ArchiveButton.tsx
 import React, { useCallback } from "react";
 import { Pressable, Text, View, useColorScheme } from "react-native";
 import Animated, {
@@ -58,7 +57,7 @@ export default function ArchiveButton({ count, onPress }: ArchiveButtonProps) {
                 <Text className="text-base font-black uppercase tracking-tight text-black dark:text-white">
                     Archive
                 </Text>
-                <Text className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                <Text className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-200">
                     {count} {count === 1 ? "item" : "items"}
                 </Text>
             </View>

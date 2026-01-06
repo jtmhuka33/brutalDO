@@ -55,7 +55,6 @@ interface ArchivedItemProps {
 }
 
 function ArchivedItem({ item, index, onRestore, onDelete, onShowDeleteToast }: ArchivedItemProps) {
-    const colorScheme = useColorScheme();
 
     const handleRestore = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -108,7 +107,7 @@ function ArchivedItem({ item, index, onRestore, onDelete, onShowDeleteToast }: A
             entering={FadeIn.delay(index * 30).duration(200)}
             exiting={FadeOut.duration(150)}
             className={cn(
-                "mb-4 border-5 border-black p-4 shadow-brutal-sm dark:border-gray-600 dark:shadow-brutal-dark-sm",
+                "mb-4 border-5 border-black p-4 shadow-brutal-sm dark:border-neo-primary dark:shadow-brutal-dark-sm",
                 CARD_COLORS[item.colorVariant ?? index % CARD_COLORS.length],
                 index % 2 === 0 && "-rotate-1",
                 index % 2 === 1 && "rotate-1"
@@ -116,19 +115,19 @@ function ArchivedItem({ item, index, onRestore, onDelete, onShowDeleteToast }: A
         >
             <View className="flex-row items-center gap-3">
                 {/* Checkmark icon */}
-                <View className="h-10 w-10 items-center justify-center border-4 border-black bg-black dark:border-gray-600 dark:bg-neo-primary">
+                <View className="h-10 w-10 items-center justify-center border-4 border-black bg-black dark:border-neo-primary dark:bg-neo-primary">
                     <Ionicons name="checkmark-sharp" size={20} color="white" />
                 </View>
 
                 {/* Text content */}
                 <View className="flex-1">
                     <Text
-                        className="text-base font-black uppercase tracking-tight text-black line-through opacity-60 dark:text-gray-300"
+                        className="text-base font-black uppercase tracking-tight text-black line-through opacity-60 dark:text-gray-100 dark:opacity-70"
                         numberOfLines={2}
                     >
                         {item.text}
                     </Text>
-                    <Text className="mt-1 text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-500">
+                    <Text className="mt-1 text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-200">
                         Archived {formatArchivedDate(item.archivedAt)}
                     </Text>
                 </View>
@@ -163,7 +162,7 @@ export default function ArchiveModal({
                                      }: ArchiveModalProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
-    const { showDeleteToast, toast } = useToast();
+    const { showDeleteToast, } = useToast();
 
     const handleClearAll = useCallback(() => {
         if (archivedTodos.length === 0) return;
@@ -286,13 +285,13 @@ export default function ArchiveModal({
                                             <Ionicons
                                                 name="archive-outline"
                                                 size={40}
-                                                color={colorScheme === "dark" ? "#666" : "#999"}
+                                                color={colorScheme === "dark" ? "#FF0055" : "#999"}
                                             />
                                         </View>
-                                        <Text className="mt-4 text-center text-lg font-black uppercase text-gray-500 dark:text-gray-400">
+                                        <Text className="mt-4 text-center text-lg font-black uppercase text-gray-500 dark:text-gray-100">
                                             Archive Empty
                                         </Text>
-                                        <Text className="mt-2 text-center text-sm font-black uppercase text-gray-400 dark:text-gray-500">
+                                        <Text className="mt-2 text-center text-sm font-black uppercase text-gray-400 dark:text-gray-200">
                                             Completed tasks appear here
                                         </Text>
                                     </View>

@@ -129,17 +129,15 @@ export default function PriorityPicker({
                 style={animatedStyle}
                 className={cn(
                     "flex-row items-center justify-center gap-3 border-5 border-black p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                    hasPriority
-                        ? "bg-gray-300 dark:bg-neo-dark-surface"
-                        : "bg-neo-accent"
+                    "bg-neo-accent"
                 )}
             >
                 <Ionicons
                     name={hasPriority ? "flag-outline" : "flag-sharp"}
                     size={24}
-                    color="black"
+                    color={'black'}
                 />
-                <Text className="font-black uppercase tracking-tight text-black text-base">
+                <Text className={`font-black uppercase tracking-tight text-base text-black`}>
                     {hasPriority ? "CHANGE PRIORITY" : "SET PRIORITY"}
                 </Text>
             </AnimatedPressable>

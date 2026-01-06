@@ -84,7 +84,7 @@ export default function BulkActionBar({
         >
             {/* Selection info */}
             <View className="flex-row items-center justify-between">
-                <Text className="text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                <Text className="text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-100">
                     {selectedCount} selected
                 </Text>
                 <Pressable

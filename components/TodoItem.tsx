@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { View, Text, TouchableOpacity, Pressable } from "react-native";
+import React, {useCallback, useState} from "react";
+import {View, Text, TouchableOpacity, Pressable} from "react-native";
 import Animated, {
     FadeInDown,
     FadeOut,
@@ -11,19 +11,20 @@ import Animated, {
     runOnJS,
     FadeIn,
 } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
-import { twMerge } from "tailwind-merge";
-import { clsx } from "clsx";
+import {Ionicons} from "@expo/vector-icons";
+import {twMerge} from "tailwind-merge";
+import {clsx} from "clsx";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
-import { Todo, getPriorityOption, getReminders } from "@/types/todo";
-import { RecurrencePattern } from "@/types/recurrence";
+import {router} from "expo-router";
+import {Todo, getPriorityOption, getReminders} from "@/types/todo";
+import {RecurrencePattern} from "@/types/recurrence";
 import {
     getRecurrenceShortLabel,
     isRecurrenceActive,
     formatRecurrencePattern,
 } from "@/utils/recurrence";
-import { useBulkEdit } from "@/context/BulkEditContext";
+import {useBulkEdit} from "@/context/BulkEditContext";
+import {useColorScheme} from "@/hooks/use-color-scheme";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -88,21 +89,22 @@ export default function TodoItem({
                                  }: TodoItemProps) {
     const colorClass = CARD_COLORS[item.colorVariant ?? index % CARD_COLORS.length];
     const [showDetails, setShowDetails] = useState(false);
-    const { isBulkMode, selectedIds, toggleSelection } = useBulkEdit();
+    const {isBulkMode, selectedIds, toggleSelection} = useBulkEdit();
 
     const isSelected = selectedIds.has(item.id);
 
     const scale = useSharedValue(1);
     const opacity = useSharedValue(1);
     const zenButtonScale = useSharedValue(1);
+    const colorScheme = useColorScheme();
 
     const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
+        transform: [{scale: scale.value}],
         opacity: opacity.value,
     }));
 
     const zenButtonAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: zenButtonScale.value }],
+        transform: [{scale: zenButtonScale.value}],
     }));
 
     const handleToggle = useCallback(() => {
@@ -163,7 +165,7 @@ export default function TodoItem({
         });
         router.push({
             pathname: "/(tabs)/zen",
-            params: { taskId: item.id },
+            params: {taskId: item.id},
         });
     }, [item.id]);
 
@@ -178,7 +180,7 @@ export default function TodoItem({
                 return "TOMORROW";
             default:
                 return new Date(dateString)
-                    .toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                    .toLocaleDateString("en-US", {month: "short", day: "numeric"})
                     .toUpperCase();
         }
     };
@@ -263,21 +265,14 @@ export default function TodoItem({
                                 onPress={handleBulkSelect}
                             >
                                 {isSelected && (
-                                    <Ionicons name="checkmark-sharp" size={24} color="black" />
+                                    <Ionicons name="checkmark-sharp" size={24} color="black"/>
                                 )}
                             </Pressable>
                         ) : (
                             <Pressable
                                 className="h-10 w-10 border-5 border-black bg-white items-center justify-center shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
                                 onPress={handlePress}
-                            >
-                                <Ionicons
-                                    name="checkmark-sharp"
-                                    size={24}
-                                    color="#ccc"
-                                    style={{ opacity: 0.3 }}
-                                />
-                            </Pressable>
+                            />
                         )}
                         <View className="flex-1 gap-1 mx-auto">
                             <View className="flex-row flex-wrap mx-3 items-center gap-2 mt-1">
@@ -320,29 +315,21 @@ export default function TodoItem({
                                         <Ionicons
                                             name="calendar-sharp"
                                             size={12}
-                                            color={
-                                                isDueDateOverdue(item.dueDate) ||
-                                                isDueDateToday(item.dueDate)
-                                                    ? "white"
-                                                    : "black"
-                                            }
+                                            color={colorScheme === 'dark' ? 'white' : 'black'}
                                         />
                                         <Text
-                                            className={cn(
-                                                "text-xs font-black uppercase tracking-tight",
-                                                isDueDateOverdue(item.dueDate) ||
-                                                isDueDateToday(item.dueDate)
-                                                    ? "text-white"
-                                                    : "text-black dark:text-black"
-                                            )}
+                                            className={
+                                                `text-xs font-black uppercase tracking-tight ${colorScheme === 'dark' ? 'text-white' : 'text-black'}`
+                                            }
                                         >
                                             {formatDueDateBadge(item.dueDate)}
                                         </Text>
                                     </View>
                                 )}
                                 {hasRecurrence && (
-                                    <View className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-purple">
-                                        <Ionicons name="repeat-sharp" size={12} color="white" />
+                                    <View
+                                        className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-purple">
+                                        <Ionicons name="repeat-sharp" size={12} color="white"/>
                                         <Text className="text-xs font-black uppercase tracking-tight text-white">
                                             {getRecurrenceShortLabel(item.recurrence!)}
                                         </Text>
@@ -350,8 +337,9 @@ export default function TodoItem({
                                 )}
                                 {/* Reminders badge - shows count */}
                                 {reminderCount > 0 && (
-                                    <View className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-green">
-                                        <Ionicons name="alarm-sharp" size={12} color="black" />
+                                    <View
+                                        className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-green">
+                                        <Ionicons name="alarm-sharp" size={12} color="black"/>
                                         {reminderCount > 1 && (
                                             <Text className="text-xs font-black text-black">
                                                 {futureReminders.length}
@@ -361,8 +349,9 @@ export default function TodoItem({
                                 )}
                                 {/* Subtask badge */}
                                 {subtaskCount > 0 && (
-                                    <View className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-secondary">
-                                        <Ionicons name="list-sharp" size={12} color="black" />
+                                    <View
+                                        className="flex-row items-center gap-1 px-2 py-1 border-3 border-black bg-neo-secondary">
+                                        <Ionicons name="list-sharp" size={12} color="black"/>
                                         <Text className="text-xs font-black text-black">
                                             {completedSubtasks}/{subtaskCount}
                                         </Text>
@@ -375,7 +364,8 @@ export default function TodoItem({
                                             size={12}
                                             color="#666"
                                         />
-                                        <Text className="text-xs font-black uppercase tracking-tight text-gray-600 dark:text-gray-600">
+                                        <Text
+                                            className="text-xs font-black uppercase tracking-tight text-gray-600 dark:text-gray-600">
                                             NO DUE DATE
                                         </Text>
                                     </View>
@@ -389,13 +379,13 @@ export default function TodoItem({
                                     onPress={handleEditPress}
                                     className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-secondary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
                                 >
-                                    <Ionicons name="pencil-sharp" size={20} color="black" />
+                                    <Ionicons name="pencil-sharp" size={20} color="black"/>
                                 </Pressable>
                                 <Pressable
                                     onPress={handleDeletePress}
                                     className="h-11 w-11 items-center justify-center border-5 border-black bg-neo-primary shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
                                 >
-                                    <Ionicons name="trash-sharp" size={20} color="white" />
+                                    <Ionicons name="trash-sharp" size={20} color="white"/>
                                 </Pressable>
                             </View>
                         )}
@@ -409,7 +399,8 @@ export default function TodoItem({
                     entering={FadeIn.duration(200).easing(Easing.out(Easing.quad))}
                     className="mt-4 border-t-4 border-dashed border-black/30 pt-4 dark:border-white/20"
                 >
-                    <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-700 dark:text-gray-700">
+                    <Text
+                        className="mb-3 text-xs font-black uppercase tracking-widest text-gray-700 dark:text-gray-700">
                         Task Details
                     </Text>
 
@@ -426,7 +417,8 @@ export default function TodoItem({
                             />
                         </View>
                         <View className="flex-1">
-                            <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                            <Text
+                                className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
                                 Priority
                             </Text>
                             <Text className="text-sm font-black uppercase text-black dark:text-black">
@@ -437,11 +429,13 @@ export default function TodoItem({
 
                     {/* Due Date */}
                     <View className="mb-3 flex-row items-start gap-3">
-                        <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-accent dark:border-neo-primary">
-                            <Ionicons name="calendar-sharp" size={16} color="black" />
+                        <View
+                            className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-accent dark:border-neo-primary">
+                            <Ionicons name="calendar-sharp" size={16} color="black"/>
                         </View>
                         <View className="flex-1">
-                            <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                            <Text
+                                className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
                                 Due Date
                             </Text>
                             <Text className="text-sm font-black uppercase text-black dark:text-black">
@@ -454,11 +448,13 @@ export default function TodoItem({
 
                     {/* Reminders - Multiple */}
                     <View className="mb-3 flex-row items-start gap-3">
-                        <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-green dark:border-neo-primary">
-                            <Ionicons name="alarm-sharp" size={16} color="black" />
+                        <View
+                            className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-green dark:border-neo-primary">
+                            <Ionicons name="alarm-sharp" size={16} color="black"/>
                         </View>
                         <View className="flex-1">
-                            <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                            <Text
+                                className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
                                 Reminders ({reminderCount})
                             </Text>
                             {reminderCount > 0 ? (
@@ -490,11 +486,13 @@ export default function TodoItem({
 
                     {/* Recurrence */}
                     <View className="mb-3 flex-row items-start gap-3">
-                        <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-purple dark:border-neo-primary">
-                            <Ionicons name="repeat-sharp" size={16} color="white" />
+                        <View
+                            className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-purple dark:border-neo-primary">
+                            <Ionicons name="repeat-sharp" size={16} color="white"/>
                         </View>
                         <View className="flex-1">
-                            <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                            <Text
+                                className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
                                 Repeat
                             </Text>
                             <Text className="text-sm font-black uppercase text-black dark:text-black">
@@ -508,11 +506,13 @@ export default function TodoItem({
                     {/* Subtasks - Interactive */}
                     {subtaskCount > 0 && (
                         <View className="mb-3 flex-row items-start gap-3">
-                            <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-secondary dark:border-neo-primary">
-                                <Ionicons name="list-sharp" size={16} color="black" />
+                            <View
+                                className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-secondary dark:border-neo-primary">
+                                <Ionicons name="list-sharp" size={16} color="black"/>
                             </View>
                             <View className="flex-1">
-                                <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                                <Text
+                                    className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
                                     Subtasks ({completedSubtasks}/{subtaskCount})
                                 </Text>
                                 <View className="mt-2 gap-2">
@@ -556,7 +556,7 @@ export default function TodoItem({
                                             {/* Delete Subtask Button */}
                                             <Pressable
                                                 onPress={() => handleSubtaskDelete(subtask.id)}
-                                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                                                 className="h-7 w-7 items-center justify-center border-3 border-black bg-neo-primary dark:border-neo-primary"
                                             >
                                                 <Ionicons
@@ -578,7 +578,7 @@ export default function TodoItem({
                             onPress={handleStartZenMode}
                             className="mt-4 flex-row items-center justify-center gap-3 border-5 border-black bg-neo-primary p-4 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
                         >
-                            <Ionicons name="leaf-sharp" size={24} color="white" />
+                            <Ionicons name="leaf-sharp" size={24} color="white"/>
                             <Text className="text-base font-black uppercase tracking-tight text-white">
                                 Start Zen Mode
                             </Text>
@@ -586,8 +586,9 @@ export default function TodoItem({
                     </Animated.View>
 
                     {/* Tap to edit hint */}
-                    <View className="mt-4 flex-row items-center justify-center gap-2 border-3 border-dashed border-gray-400 bg-white/50 p-3 dark:border-neo-primary dark:bg-neo-dark-surface/50">
-                        <Ionicons name="pencil-outline" size={16} color="#666" />
+                    <View
+                        className="mt-4 flex-row items-center justify-center gap-2 border-3 border-dashed border-gray-400 bg-white/50 p-3 dark:border-neo-primary dark:bg-neo-dark-surface/50">
+                        <Ionicons name="pencil-outline" size={16} color="#666"/>
                         <Text className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-500">
                             Tap edit to modify task
                         </Text>
