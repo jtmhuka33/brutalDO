@@ -19,7 +19,7 @@ import { clsx } from "clsx";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import PomodoroTimer from "@/components/PomodoroTimer";
-import { Todo, getPriorityOption } from "@/types/todo";
+import { Todo, getPriorityOption, getReminders } from "@/types/todo";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
 import { usePomodoro } from "@/context/PomodoroContext";
@@ -237,8 +237,17 @@ export default function ZenMode() {
                 const todo = allTodos.find((t) => t.id === taskId);
                 if (!todo) return;
 
+                // Cancel legacy notification
                 if (todo.notificationId) {
                     await cancelNotification(todo.notificationId);
+                }
+
+                // Cancel all reminder notifications (including migrated legacy)
+                const reminders = getReminders(todo);
+                for (const reminder of reminders) {
+                    if (reminder.notificationId) {
+                        await cancelNotification(reminder.notificationId);
+                    }
                 }
 
                 let updatedTodos: Todo[];

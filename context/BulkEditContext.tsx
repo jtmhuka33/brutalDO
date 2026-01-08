@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Todo } from "@/types/todo";
+import { Todo, getReminders } from "@/types/todo";
 import { cancelNotification } from "@/utils/notifications";
 
 const STORAGE_KEY = "@neo_brutal_todos_v2";
@@ -73,8 +73,18 @@ export function BulkEditProvider({ children }: { children: ReactNode }) {
             const todo = todos.find((t) => t.id === id);
             if (todo) {
                 deletedTodos.push(todo);
+
+                // Cancel legacy notification
                 if (todo.notificationId) {
                     await cancelNotification(todo.notificationId);
+                }
+
+                // Cancel all reminder notifications (including migrated legacy)
+                const reminders = getReminders(todo);
+                for (const reminder of reminders) {
+                    if (reminder.notificationId) {
+                        await cancelNotification(reminder.notificationId);
+                    }
                 }
             }
         }
