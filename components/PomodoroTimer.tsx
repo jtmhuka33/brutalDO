@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { cancelNotification, scheduleNotification } from "@/utils/notifications";
 import { usePomodoro, PersistedTimerState } from "@/context/PomodoroContext";
+import { useSettings } from "@/context/SettingsContext";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { Subtask } from "@/types/todo";
@@ -25,9 +26,6 @@ interface PomodoroTimerProps {
     onBack: () => void;
 }
 
-const WORK_TIME = 25 * 60;
-const SHORT_BREAK = 5 * 60;
-const LONG_BREAK = 15 * 60;
 const TIMER_STORAGE_KEY = "@pomodoro_timer_state";
 
 type TimerState = "work" | "shortBreak" | "longBreak";
@@ -47,6 +45,15 @@ export default function PomodoroTimer({
                                           onToggleSubtask,
                                           onBack,
                                       }: PomodoroTimerProps) {
+    const { settings } = useSettings();
+    const pomodoroSettings = settings.pomodoro;
+
+    // Convert minutes to seconds
+    const WORK_TIME = pomodoroSettings.workDuration * 60;
+    const SHORT_BREAK = pomodoroSettings.shortBreakDuration * 60;
+    const LONG_BREAK = pomodoroSettings.longBreakDuration * 60;
+    const SESSIONS_BEFORE_LONG_BREAK = pomodoroSettings.sessionsBeforeLongBreak;
+
     const [timeLeft, setTimeLeft] = useState(WORK_TIME);
     const [isRunning, setIsRunning] = useState(false);
     const [timerState, setTimerState] = useState<TimerState>("work");
@@ -79,7 +86,7 @@ export default function PomodoroTimer({
             case "longBreak":
                 return LONG_BREAK;
         }
-    }, []);
+    }, [WORK_TIME, SHORT_BREAK, LONG_BREAK]);
 
     const persistTimerState = useCallback(async (
         running: boolean,
@@ -151,7 +158,7 @@ export default function PomodoroTimer({
             const newSessionsCompleted = currentSessions + 1;
             setSessionsCompleted(newSessionsCompleted);
 
-            const isLongBreak = newSessionsCompleted % 4 === 0;
+            const isLongBreak = newSessionsCompleted % SESSIONS_BEFORE_LONG_BREAK === 0;
             const nextState = isLongBreak ? "longBreak" : "shortBreak";
             setTimerState(nextState);
             setTimeLeft(getTimerDuration(nextState));
@@ -171,7 +178,7 @@ export default function PomodoroTimer({
                 [{ text: "Let's go!" }]
             );
         }
-    }, [getTimerDuration, clearPersistedState]);
+    }, [getTimerDuration, clearPersistedState, WORK_TIME, SESSIONS_BEFORE_LONG_BREAK]);
 
     useEffect(() => {
         if (!isRunning || !endTime) {
@@ -236,25 +243,30 @@ export default function PomodoroTimer({
 
     useEffect(() => {
         const initialize = async () => {
+            // First check if there's an active timer
             if (activeTimer && activeTimer.taskId === taskId) {
-                const remaining = Math.max(0, Math.ceil((activeTimer.endTime - Date.now()) / 1000));
+                try {
+                    const remaining = Math.max(0, Math.ceil((activeTimer.endTime - Date.now()) / 1000));
 
-                if (remaining > 0) {
-                    setEndTime(activeTimer.endTime);
-                    setTimerState(activeTimer.timerState);
-                    setSessionsCompleted(activeTimer.sessionsCompleted);
-                    setTimeLeft(remaining);
-                    setIsRunning(true);
-                    if (activeTimer.notificationId) {
-                        setNotificationId(activeTimer.notificationId);
+                    if (remaining > 0) {
+                        setEndTime(activeTimer.endTime);
+                        setTimerState(activeTimer.timerState);
+                        setSessionsCompleted(activeTimer.sessionsCompleted);
+                        setTimeLeft(remaining);
+                        setIsRunning(true);
+                        if (activeTimer.notificationId) {
+                            setNotificationId(activeTimer.notificationId);
+                        }
+                        setIsInitialized(true);
+                        return;
+                    } else {
+                        await clearPersistedState();
+                        handleTimerComplete(activeTimer.timerState, activeTimer.sessionsCompleted);
+                        setIsInitialized(true);
+                        return;
                     }
-                    setIsInitialized(true);
-                    return;
-                } else {
-                    await clearPersistedState();
-                    handleTimerComplete(activeTimer.timerState, activeTimer.sessionsCompleted);
-                    setIsInitialized(true);
-                    return;
+                } catch (e) {
+                    console.error("Failed to load task for active timer:", e);
                 }
             }
 
@@ -278,6 +290,9 @@ export default function PomodoroTimer({
                     setSessionsCompleted(persistedState.sessionsCompleted);
                     handleTimerComplete(persistedState.timerState, persistedState.sessionsCompleted);
                 }
+            } else {
+                // Initialize with fresh values from settings
+                setTimeLeft(WORK_TIME);
             }
 
             setIsInitialized(true);
@@ -285,6 +300,13 @@ export default function PomodoroTimer({
 
         initialize();
     }, []);
+
+    // Update timeLeft when settings change and timer is not running
+    useEffect(() => {
+        if (isInitialized && !isRunning) {
+            setTimeLeft(getTimerDuration(timerState));
+        }
+    }, [pomodoroSettings, isInitialized, isRunning, timerState, getTimerDuration]);
 
     const scheduleTimerNotification = useCallback(async (duration: number, state: TimerState) => {
         if (notificationId) {
@@ -355,7 +377,7 @@ export default function PomodoroTimer({
                 },
             ]
         );
-    }, [notificationId, clearPersistedState]);
+    }, [notificationId, clearPersistedState, WORK_TIME]);
 
     const handleCompleteTaskPress = useCallback(() => {
         Alert.alert(

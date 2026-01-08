@@ -22,6 +22,7 @@ import * as Haptics from "expo-haptics";
 
 import { useTodoList } from "@/context/TodoListContext";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
+import SettingsPanel from "./SettingsPanel";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -46,6 +47,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
 
     const [isAddingNew, setIsAddingNew] = useState(false);
     const [newListName, setNewListName] = useState("");
+    const [showSettings, setShowSettings] = useState(false);
 
     const handleSelectList = useCallback(async (listId: string) => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -102,6 +104,15 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
         }, 100);
     }, []);
 
+    const handleOpenSettings = useCallback(async () => {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setShowSettings(true);
+    }, []);
+
+    const handleCloseSettings = useCallback(() => {
+        setShowSettings(false);
+    }, []);
+
     return (
         <View
             className="flex-1 bg-neo-bg dark:bg-neo-dark"
@@ -112,11 +123,24 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                 entering={FadeIn.duration(300)}
                 className="mb-8 px-6"
             >
-                <View className="flex-row items-center gap-3">
-                    <View className="h-4 w-4 rotate-45 border-4 border-black bg-neo-primary dark:border-neo-primary" />
-                    <Text className="text-3xl font-black uppercase tracking-tighter text-black dark:text-white">
-                        Projects
-                    </Text>
+                <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-3">
+                        <View className="h-4 w-4 rotate-45 border-4 border-black bg-neo-primary dark:border-neo-primary" />
+                        <Text className="text-3xl font-black uppercase tracking-tighter text-black dark:text-white">
+                            Projects
+                        </Text>
+                    </View>
+                    {/* Settings Button */}
+                    <Pressable
+                        onPress={handleOpenSettings}
+                        className="h-12 w-12 items-center justify-center border-5 border-black bg-white shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm"
+                    >
+                        <Ionicons
+                            name="settings-sharp"
+                            size={24}
+                            color="#FF0055"
+                        />
+                    </Pressable>
                 </View>
                 <Text className="mt-2 text-sm font-black uppercase tracking-widest text-gray-500 dark:text-gray-200">
                     Swipe to close
@@ -257,6 +281,12 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                     Long press to delete
                 </Text>
             </View>
+
+            {/* Settings Panel */}
+            <SettingsPanel
+                visible={showSettings}
+                onClose={handleCloseSettings}
+            />
         </View>
     );
 }

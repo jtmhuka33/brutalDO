@@ -18,6 +18,7 @@ import { TodoListProvider } from "@/context/TodoListContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { PomodoroProvider, usePomodoro } from "@/context/PomodoroContext";
 import { BulkEditProvider } from "@/context/BulkEditContext";
+import { SettingsProvider } from "@/context/SettingsContext";
 import ProjectDrawer from "@/components/ProjectDrawer";
 
 configureReanimatedLogger({
@@ -98,22 +99,24 @@ export default function RootLayout() {
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
-            <TodoListProvider>
-                <ToastProvider>
-                    <PomodoroProvider>
-                        <BulkEditProvider>
-                            <View
-                                style={{
-                                    flex: 1,
-                                    backgroundColor: theme.background,
-                                }}
-                            >
-                                <NavigationContent />
-                            </View>
-                        </BulkEditProvider>
-                    </PomodoroProvider>
-                </ToastProvider>
-            </TodoListProvider>
+            <SettingsProvider>
+                <TodoListProvider>
+                    <ToastProvider>
+                        <PomodoroProvider>
+                            <BulkEditProvider>
+                                <View
+                                    style={{
+                                        flex: 1,
+                                        backgroundColor: theme.background,
+                                    }}
+                                >
+                                    <NavigationContent />
+                                </View>
+                            </BulkEditProvider>
+                        </PomodoroProvider>
+                    </ToastProvider>
+                </TodoListProvider>
+            </SettingsProvider>
         </GestureHandlerRootView>
     );
 }
