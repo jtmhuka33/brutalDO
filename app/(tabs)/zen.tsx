@@ -228,6 +228,36 @@ export default function ZenMode() {
         }
     }, [selectedTodo]);
 
+    const handleDeleteSubtask = useCallback(async (subtaskId: string) => {
+        if (!selectedTodo) return;
+
+        try {
+            const stored = await AsyncStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const allTodos: Todo[] = JSON.parse(stored);
+                const updatedTodos = allTodos.map((t) =>
+                    t.id === selectedTodo.id
+                        ? {
+                            ...t,
+                            subtasks: (t.subtasks || []).filter((s) => s.id !== subtaskId),
+                        }
+                        : t
+                );
+
+                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTodos));
+
+                const updatedTodo = updatedTodos.find(t => t.id === selectedTodo.id);
+                if (updatedTodo) {
+                    setSelectedTodo(updatedTodo);
+                }
+
+                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }
+        } catch (e) {
+            console.error("Failed to delete subtask");
+        }
+    }, [selectedTodo]);
+
     const handleCompleteTask = async (taskId: string) => {
         try {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
@@ -437,6 +467,7 @@ export default function ZenMode() {
                     onComplete={handleComplete}
                     onCompleteTask={handleCompleteTask}
                     onToggleSubtask={handleToggleSubtask}
+                    onDeleteSubtask={handleDeleteSubtask}
                     onBack={handleBack}
                 />
             </View>

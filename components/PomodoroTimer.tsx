@@ -23,6 +23,7 @@ interface PomodoroTimerProps {
     onComplete: () => void;
     onCompleteTask: (taskId: string) => void;
     onToggleSubtask: (subtaskId: string) => void;
+    onDeleteSubtask: (subtaskId: string) => void;
     onBack: () => void;
 }
 
@@ -43,6 +44,7 @@ export default function PomodoroTimer({
                                           subtasks,
                                           onCompleteTask,
                                           onToggleSubtask,
+                                          onDeleteSubtask,
                                           onBack,
                                       }: PomodoroTimerProps) {
     const { settings } = useSettings();
@@ -575,7 +577,7 @@ export default function PomodoroTimer({
                             subtask={subtask}
                             index={index}
                             onToggle={onToggleSubtask}
-                            onDelete={() => {}}
+                            onDelete={onDeleteSubtask}
                         />
                     ))}
                 </View>
