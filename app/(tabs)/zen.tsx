@@ -41,7 +41,7 @@ export default function ZenMode() {
     const [isInitializing, setIsInitializing] = useState(true);
     const insets = useSafeAreaInsets();
     const { selectedListId, selectedList, setSelectedListId } = useTodoList();
-    const { activeTimer, clearActiveTimer, setActiveTimer } = usePomodoro();
+    const { activeTimer, clearActiveTimer} = usePomodoro();
 
     // Load task directly if taskId is provided
     const loadTaskById = useCallback(async (taskId: string) => {
@@ -191,7 +191,7 @@ export default function ZenMode() {
     const handleComplete = async () => {
         setTimerStarted(false);
         setSelectedTodo(null);
-        setActiveTimer(null);
+        await clearActiveTimer();
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
@@ -259,6 +259,9 @@ export default function ZenMode() {
     }, [selectedTodo]);
 
     const handleCompleteTask = async (taskId: string) => {
+        // Clear the active Pomodoro timer first (this cancels the notification)
+        await clearActiveTimer();
+
         try {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) {
@@ -354,7 +357,6 @@ export default function ZenMode() {
 
         setTimerStarted(false);
         setSelectedTodo(null);
-        setActiveTimer(null);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         // Navigate back to main screen after completing task
@@ -410,8 +412,8 @@ export default function ZenMode() {
             case "yearly":
                 return "YEARLY";
             case "custom":
-                if (todo.recurrence.interval && todo.recurrence.unit) {
-                    return `${todo.recurrence.interval}${todo.recurrence.unit.charAt(0).toUpperCase()}`;
+                if (todo.recurrence.daysOfWeek && todo.recurrence.daysOfWeek.length > 0) {
+                    return "CUSTOM";
                 }
                 return "CUSTOM";
             default:

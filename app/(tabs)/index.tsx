@@ -31,7 +31,7 @@ import * as Haptics from "expo-haptics";
 import TodoItem from "@/components/TodoItem";
 import ArchiveButton from "@/components/ArchiveButton";
 import ArchiveModal from "@/components/ArchiveModal";
-import { Todo, Subtask, getPriorityWeight, getReminders } from "@/types/todo";
+import {Todo, Subtask, getPriorityWeight, getReminders, SortType} from "@/types/todo";
 import { RecurrencePattern } from "@/types/recurrence";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
@@ -42,6 +42,8 @@ import {
 } from "@/utils/notifications";
 import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
 import SortSelector from "@/components/SortSelector";
+import { usePomodoro } from "@/context/PomodoroContext";
+
 
 const STORAGE_KEY = "@neo_brutal_todos_v2";
 const SORT_STORAGE_KEY = "@neo_brutal_sort_v1";
@@ -65,6 +67,7 @@ export default function TodoApp() {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
     const { showDeleteToast, toast } = useToast();
+    const { activeTimer, clearActiveTimer } = usePomodoro();
 
     const { selectedListId, selectedList } = useTodoList();
     const {
@@ -273,6 +276,10 @@ export default function TodoApp() {
             const todo = todos.find((t) => t.id === id);
             if (!todo) return;
 
+            if (activeTimer && activeTimer.taskId === id) {
+                await clearActiveTimer();
+            }
+
             if (todo.notificationId) {
                 await cancelNotification(todo.notificationId);
             }
@@ -327,7 +334,7 @@ export default function TodoApp() {
                 )
             );
         },
-        [todos]
+        [todos, activeTimer, clearActiveTimer]
     );
 
     const restoreTodo = useCallback(async (id: string) => {
