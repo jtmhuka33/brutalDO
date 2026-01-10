@@ -2,7 +2,7 @@ import "../global.css";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import {useEffect, useRef} from "react";
 import { Platform, View } from "react-native";
 import * as SystemUI from "expo-system-ui";
 import * as NavigationBar from "expo-navigation-bar";
@@ -42,16 +42,16 @@ function NavigationContent() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
     const { activeTimer, isCheckingTimer } = usePomodoro();
-    const [hasNavigated, setHasNavigated] = useState(false);
+    const hasCheckedInitial = useRef(false);
 
     useEffect(() => {
-        if (!isCheckingTimer && activeTimer && !hasNavigated) {
-            setHasNavigated(true);
-            setTimeout(() => {
-                router.replace("/(tabs)/zen");
-            }, 100);
+        if (!isCheckingTimer && !hasCheckedInitial.current) {
+            hasCheckedInitial.current = true;
+            if(activeTimer){
+                router.replace('/(tabs)/zen')
+            }
         }
-    }, [isCheckingTimer, activeTimer, hasNavigated]);
+    }, [isCheckingTimer]);
 
     if (isCheckingTimer) {
         return null;
