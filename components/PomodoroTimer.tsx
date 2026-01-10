@@ -68,6 +68,7 @@ export default function PomodoroTimer({
 
     const scale = useSharedValue(1);
     const completeButtonScale = useSharedValue(1);
+    const skipButtonScale = useSharedValue(1);
 
     const completeButtonAnimatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: completeButtonScale.value }],
@@ -75,6 +76,10 @@ export default function PomodoroTimer({
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
+    }));
+
+    const skipButtonAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: skipButtonScale.value }],
     }));
 
     const getTimerDuration = useCallback((state: TimerState): number => {
@@ -379,6 +384,57 @@ export default function PomodoroTimer({
         );
     }, [notificationId, clearPersistedState, WORK_TIME]);
 
+    const skipSession = useCallback(() => {
+        const currentStateLabel = timerState === "work"
+            ? "focus session"
+            : timerState === "shortBreak"
+                ? "short break"
+                : "long break";
+
+        const nextStateLabel = timerState === "work"
+            ? (sessionsCompleted + 1) % SESSIONS_BEFORE_LONG_BREAK === 0 ? "long break" : "short break"
+            : "focus session";
+
+        Alert.alert(
+            "Skip Session?",
+            `Skip the current ${currentStateLabel} and move to ${nextStateLabel}?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Skip",
+                    onPress: async () => {
+                        // Cancel any pending notification
+                        if (notificationId) {
+                            await cancelNotification(notificationId);
+                            setNotificationId(null);
+                        }
+
+                        // Clear running state
+                        setEndTime(null);
+                        setIsRunning(false);
+                        await clearPersistedState();
+
+                        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+                        // Transition to next state
+                        if (timerState === "work") {
+                            const newSessionsCompleted = sessionsCompleted + 1;
+                            setSessionsCompleted(newSessionsCompleted);
+
+                            const isLongBreak = newSessionsCompleted % SESSIONS_BEFORE_LONG_BREAK === 0;
+                            const nextState = isLongBreak ? "longBreak" : "shortBreak";
+                            setTimerState(nextState);
+                            setTimeLeft(getTimerDuration(nextState));
+                        } else {
+                            setTimerState("work");
+                            setTimeLeft(WORK_TIME);
+                        }
+                    },
+                },
+            ]
+        );
+    }, [timerState, sessionsCompleted, notificationId, clearPersistedState, getTimerDuration, WORK_TIME, SESSIONS_BEFORE_LONG_BREAK]);
+
     const handleCompleteTaskPress = useCallback(() => {
         Alert.alert(
             "Complete Task?",
@@ -420,6 +476,16 @@ export default function PomodoroTimer({
         completeButtonScale.value = withTiming(1, TIMING_CONFIG);
     }, []);
 
+    const handleSkipButtonPressIn = useCallback(() => {
+        'worklet';
+        skipButtonScale.value = withTiming(0.95, TIMING_CONFIG);
+    }, []);
+
+    const handleSkipButtonPressOut = useCallback(() => {
+        'worklet';
+        skipButtonScale.value = withTiming(1, TIMING_CONFIG);
+    }, []);
+
     const formatTime = (seconds: number): string => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -434,6 +500,17 @@ export default function PomodoroTimer({
                 return "bg-neo-green";
             case "longBreak":
                 return "bg-neo-purple";
+        }
+    };
+
+    const getStateLabel = () => {
+        switch (timerState) {
+            case "work":
+                return "FOCUS";
+            case "shortBreak":
+                return "SHORT BREAK";
+            case "longBreak":
+                return "LONG BREAK";
         }
     };
 
@@ -504,6 +581,16 @@ export default function PomodoroTimer({
                 </View>
             )}
 
+            {/* Timer State Label */}
+            <View className={cn(
+                "items-center justify-center border-5 border-black py-3 shadow-brutal-sm dark:border-neo-primary dark:shadow-brutal-dark-sm",
+                getStateColor()
+            )}>
+                <Text className="text-lg font-black uppercase tracking-widest text-white">
+                    {getStateLabel()}
+                </Text>
+            </View>
+
             {/* Main Timer Display */}
             <View className={cn(
                 "items-center justify-center border-5 border-black p-12 shadow-brutal-lg dark:border-neo-primary dark:shadow-brutal-dark-lg",
@@ -543,6 +630,20 @@ export default function PomodoroTimer({
                     </Text>
                 </Pressable>
             </View>
+
+            {/* Skip Session Button */}
+            <AnimatedPressable
+                onPress={skipSession}
+                onPressIn={handleSkipButtonPressIn}
+                onPressOut={handleSkipButtonPressOut}
+                style={skipButtonAnimatedStyle}
+                className="flex-row items-center justify-center gap-3 border-5 border-black bg-neo-orange p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark"
+            >
+                <Ionicons name="play-skip-forward-sharp" size={24} color="white" />
+                <Text className="text-base font-black uppercase tracking-tight text-white">
+                    Skip Session
+                </Text>
+            </AnimatedPressable>
 
             {/* Complete Task Button */}
             <AnimatedPressable
