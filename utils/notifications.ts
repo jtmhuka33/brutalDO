@@ -16,9 +16,7 @@ Notifications.setNotificationHandler({
 /**
  * Request notification permissions from the user
  */
-export async function registerForPushNotificationsAsync() {
-    let token;
-
+export async function registerForPushNotificationsAsync(): Promise<boolean> {
     if (Platform.OS === "android") {
         await Notifications.setNotificationChannelAsync("default", {
             name: "default",
@@ -40,13 +38,14 @@ export async function registerForPushNotificationsAsync() {
 
         if (finalStatus !== "granted") {
             console.log("Failed to get push token for push notification!");
-            return null;
+            return false;
         }
+
+        return true;
     } else {
         console.log("Must use physical device for Push Notifications");
+        return false;
     }
-
-    return token;
 }
 
 /**
@@ -75,18 +74,4 @@ export async function scheduleNotification(
  */
 export async function cancelNotification(notificationId: string) {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
-}
-
-/**
- * Cancel all scheduled notifications (useful for cleanup)
- */
-export async function cancelAllNotifications() {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-}
-
-/**
- * Get all scheduled notifications (useful for debugging)
- */
-export async function getAllScheduledNotifications() {
-    return await Notifications.getAllScheduledNotificationsAsync();
 }

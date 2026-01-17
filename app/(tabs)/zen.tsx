@@ -8,7 +8,7 @@ import {
     Keyboard,
     Alert,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -17,7 +17,6 @@ import * as Haptics from "expo-haptics";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import { Todo, getPriorityOption, getReminders } from "@/types/todo";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
@@ -156,7 +155,7 @@ export default function ZenMode() {
                     }
                 }
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to load todos");
         }
     };
@@ -223,7 +222,7 @@ export default function ZenMode() {
 
                 await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to toggle subtask");
         }
     }, [selectedTodo]);
@@ -253,7 +252,7 @@ export default function ZenMode() {
 
                 await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to delete subtask");
         }
     }, [selectedTodo]);
@@ -351,7 +350,7 @@ export default function ZenMode() {
 
                 setTodos(activeTodos);
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to complete todo");
         }
 
@@ -741,7 +740,7 @@ export default function ZenMode() {
                             </Text>
                             {selectedTodo && (
                                 <Text className="mt-2 text-sm font-black uppercase text-white">
-                                    Let's focus! 🧘
+                                    {"Let's focus! 🧘"}
                                 </Text>
                             )}
                         </Pressable>

@@ -131,7 +131,7 @@ export default function TodoApp() {
         try {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) setTodos(JSON.parse(stored));
-        } catch (e) {
+        } catch {
             console.error("Failed to load todos");
         }
     }, []);
@@ -140,7 +140,7 @@ export default function TodoApp() {
         try {
             const stored = await AsyncStorage.getItem(SORT_STORAGE_KEY);
             if (stored) setSortBy(stored as SortType);
-        } catch (e) {
+        } catch {
             console.error("Failed to load sort preference");
         }
     }, []);
@@ -171,7 +171,7 @@ export default function TodoApp() {
     const saveTodos = async (newTodos: Todo[]) => {
         try {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newTodos));
-        } catch (e) {
+        } catch {
             console.error("Failed to save todos");
         }
     };
@@ -180,7 +180,7 @@ export default function TodoApp() {
         setSortBy(newSort);
         try {
             await AsyncStorage.setItem(SORT_STORAGE_KEY, newSort);
-        } catch (e) {
+        } catch {
             console.error("Failed to save sort preference");
         }
     }, []);

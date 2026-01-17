@@ -1,26 +1,17 @@
 import React, { useCallback, useEffect } from "react";
-import { View, Text, Pressable, useColorScheme } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withTiming,
     withSequence,
-    runOnJS,
     Easing,
-    interpolate,
-    Extrapolation,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { twMerge } from "tailwind-merge";
-import { clsx } from "clsx";
 
 import { useToast } from "@/context/ToastContext";
-
-function cn(...inputs: (string | undefined | null | false)[]) {
-    return twMerge(clsx(inputs));
-}
 
 const TIMING_CONFIG = {
     duration: 250,
@@ -41,7 +32,6 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export default function UndoToast({ onUndo }: UndoToastProps) {
     const { toast, hideToast, undoDelete } = useToast();
     const insets = useSafeAreaInsets();
-    const colorScheme = useColorScheme();
 
     const translateY = useSharedValue(100);
     const opacity = useSharedValue(0);
