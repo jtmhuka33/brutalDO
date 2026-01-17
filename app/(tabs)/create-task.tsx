@@ -79,7 +79,7 @@ export default function CreateTaskScreen() {
 
     useEffect(() => {
         if (params.todoId) {
-            loadExistingTodo(params.todoId);
+            loadExistingTodo(params.todoId)
         }
     }, [params.todoId]);
 

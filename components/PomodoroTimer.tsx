@@ -234,7 +234,7 @@ export default function PomodoroTimer({
                 if (isRunning && endTime) {
                     const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
                     if (remaining <= 0) {
-                        handleTimerComplete(timerState, sessionsCompleted);
+                        await handleTimerComplete(timerState, sessionsCompleted);
                     } else {
                         setTimeLeft(remaining);
                     }
@@ -268,7 +268,7 @@ export default function PomodoroTimer({
                         return;
                     } else {
                         await clearPersistedState();
-                        handleTimerComplete(activeTimer.timerState, activeTimer.sessionsCompleted);
+                        await handleTimerComplete(activeTimer.timerState, activeTimer.sessionsCompleted);
                         setIsInitialized(true);
                         return;
                     }
@@ -295,7 +295,7 @@ export default function PomodoroTimer({
                     await clearPersistedState();
                     setTimerState(persistedState.timerState);
                     setSessionsCompleted(persistedState.sessionsCompleted);
-                    handleTimerComplete(persistedState.timerState, persistedState.sessionsCompleted);
+                    await handleTimerComplete(persistedState.timerState, persistedState.sessionsCompleted);
                 }
             } else {
                 // Initialize with fresh values from settings
@@ -337,9 +337,9 @@ export default function PomodoroTimer({
         setEndTime(newEndTime);
         setIsRunning(true);
 
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         const notifId = await scheduleTimerNotification(timeLeft, timerState);
-        persistTimerState(true, newEndTime, timerState, sessionsCompleted, notifId);
+        await persistTimerState(true, newEndTime, timerState, sessionsCompleted, notifId);
     }, [timeLeft, timerState, sessionsCompleted, scheduleTimerNotification, persistTimerState]);
 
     const pauseTimer = useCallback(async () => {
