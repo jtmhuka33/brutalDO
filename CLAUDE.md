@@ -114,3 +114,5 @@ Uses Drawer + Stack pattern:
 ### Instructions
 
 Always research best practices for expo, react native and tailwind css. Ensure light and dark mode work. Everything is in a neo brutalist style. Always research best practices to implement the feature or fix in question
+
+Please refer to https://hyochan.github.io/expo-iap/llms-full.txt for the expo-iap API documentation.

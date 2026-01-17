@@ -29,6 +29,13 @@ import {
     DAYS_OF_WEEK,
 } from "@/types/recurrence";
 import { formatRecurrencePattern } from "@/utils/recurrence";
+import { useSubscription } from "@/context/SubscriptionContext";
+import {
+    isRecurrenceTypeAvailable,
+    canSelectCustomRecurrenceDays,
+    canSetRecurrenceEndDate,
+} from "@/utils/featureGates";
+import PaywallSheet from "./PaywallSheet";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -58,7 +65,10 @@ export default function RecurrencePicker({
     const [selectedDays, setSelectedDays] = useState<number[]>([]);
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
     const [endDate, setEndDate] = useState<Date | null>(null);
+    const [showPaywall, setShowPaywall] = useState(false);
+    const [paywallFeature, setPaywallFeature] = useState<string>("");
     const colorScheme = useColorScheme();
+    const { isPremium } = useSubscription();
 
     const scale = useSharedValue(1);
 
@@ -106,9 +116,22 @@ export default function RecurrencePicker({
                 return;
             }
 
+            // Check if this recurrence type requires premium
+            if (!isRecurrenceTypeAvailable(type, isPremium)) {
+                setPaywallFeature(type === "biweekly" ? "biweekly recurrence" : "custom recurrence");
+                setShowPaywall(true);
+                return;
+            }
+
             const option = RECURRENCE_OPTIONS.find(o => o.type === type);
 
+            // For options with day picker, check if premium is required
             if (option?.showDayPicker) {
+                if (!canSelectCustomRecurrenceDays(isPremium)) {
+                    setPaywallFeature("custom day selection");
+                    setShowPaywall(true);
+                    return;
+                }
                 setSelectedType(type);
                 if (selectedDays.length === 0) {
                     const today = new Date().getDay();
@@ -124,7 +147,7 @@ export default function RecurrencePicker({
                 closeModal();
             }
         },
-        [onSetRecurrence, onClearRecurrence, closeModal, endDate, selectedDays]
+        [onSetRecurrence, onClearRecurrence, closeModal, endDate, selectedDays, isPremium]
     );
 
     const handleToggleDay = useCallback(async (day: number) => {
@@ -155,8 +178,16 @@ export default function RecurrencePicker({
 
     const handleOpenEndDatePicker = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        // Check if premium is required for end dates
+        if (!canSetRecurrenceEndDate(isPremium)) {
+            setPaywallFeature("recurrence end dates");
+            setShowPaywall(true);
+            return;
+        }
+
         setShowEndDatePicker(true);
-    }, []);
+    }, [isPremium]);
 
     const handleEndDateConfirm = useCallback((date: Date) => {
         setEndDate(date);
@@ -318,15 +349,20 @@ export default function RecurrencePicker({
         <View className="gap-3 p-4">
             {RECURRENCE_OPTIONS.map((option, index) => {
                 const isSelected = recurrence?.type === option.type;
+                const isLocked = !isRecurrenceTypeAvailable(option.type, isPremium);
+                const requiresDayPicker = option.showDayPicker && !canSelectCustomRecurrenceDays(isPremium);
+
                 return (
                     <Pressable
                         key={option.type}
                         onPress={() => handleSelectType(option.type)}
                         className={cn(
                             "flex-row items-center gap-4 border-5 border-black p-4 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                            isSelected
-                                ? "bg-neo-purple"
-                                : "bg-white dark:bg-neo-dark-surface",
+                            isLocked || requiresDayPicker
+                                ? "bg-gray-200 dark:bg-neo-dark-elevated opacity-80"
+                                : isSelected
+                                    ? "bg-neo-purple"
+                                    : "bg-white dark:bg-neo-dark-surface",
                             index % 2 === 0 && "-rotate-1",
                             index % 2 === 1 && "rotate-1"
                         )}
@@ -334,29 +370,46 @@ export default function RecurrencePicker({
                         <View
                             className={cn(
                                 "h-10 w-10 items-center justify-center border-4 border-black dark:border-neo-primary",
-                                isSelected
-                                    ? "bg-white dark:bg-neo-dark"
-                                    : "bg-neo-accent"
+                                isLocked || requiresDayPicker
+                                    ? "bg-gray-300 dark:bg-gray-600"
+                                    : isSelected
+                                        ? "bg-white dark:bg-neo-dark"
+                                        : "bg-neo-accent"
                             )}
                         >
-                            <Ionicons
-                                name={option.icon as any}
-                                size={20}
-                                color={isSelected ? "#B000FF" : "black"}
-                            />
+                            {isLocked || requiresDayPicker ? (
+                                <Ionicons name="lock-closed-sharp" size={18} color="#666" />
+                            ) : (
+                                <Ionicons
+                                    name={option.icon as keyof typeof Ionicons.glyphMap}
+                                    size={20}
+                                    color={isSelected ? "#B000FF" : "black"}
+                                />
+                            )}
                         </View>
                         <View className="flex-1">
-                            <Text
-                                className={cn(
-                                    "text-base font-black uppercase tracking-tight",
-                                    isSelected
-                                        ? "text-white"
-                                        : "text-black dark:text-white"
+                            <View className="flex-row items-center gap-2">
+                                <Text
+                                    className={cn(
+                                        "text-base font-black uppercase tracking-tight",
+                                        isLocked || requiresDayPicker
+                                            ? "text-gray-500 dark:text-gray-400"
+                                            : isSelected
+                                                ? "text-white"
+                                                : "text-black dark:text-white"
+                                    )}
+                                >
+                                    {option.label}
+                                </Text>
+                                {(isLocked || requiresDayPicker) && (
+                                    <View className="border-2 border-neo-purple bg-neo-purple/20 px-1.5 py-0.5">
+                                        <Text className="text-[10px] font-black uppercase text-neo-purple">
+                                            Premium
+                                        </Text>
+                                    </View>
                                 )}
-                            >
-                                {option.label}
-                            </Text>
-                            {option.showDayPicker && (
+                            </View>
+                            {option.showDayPicker && !isLocked && !requiresDayPicker && (
                                 <Text
                                     className={cn(
                                         "text-xs font-black uppercase tracking-wider mt-1",
@@ -369,9 +422,14 @@ export default function RecurrencePicker({
                                 </Text>
                             )}
                         </View>
-                        {isSelected && (
+                        {isSelected && !isLocked && !requiresDayPicker && (
                             <View className="h-8 w-8 items-center justify-center border-3 border-black bg-white dark:border-neo-primary">
                                 <Ionicons name="checkmark-sharp" size={16} color="#B000FF" />
+                            </View>
+                        )}
+                        {(isLocked || requiresDayPicker) && (
+                            <View className="h-8 w-8 items-center justify-center border-3 border-neo-purple bg-neo-purple/20">
+                                <Ionicons name="diamond-sharp" size={14} color="#B000FF" />
                             </View>
                         )}
                     </Pressable>
@@ -380,10 +438,19 @@ export default function RecurrencePicker({
 
             {/* End Date Option */}
             <View className="mt-4 border-t-4 border-dashed border-gray-300 pt-4 dark:border-gray-600">
-                <Text className="mb-3 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
-                    End Date (Optional)
-                </Text>
-                {endDate ? (
+                <View className="mb-3 flex-row items-center justify-between">
+                    <Text className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
+                        End Date (Optional)
+                    </Text>
+                    {!canSetRecurrenceEndDate(isPremium) && (
+                        <View className="border-2 border-neo-purple bg-neo-purple/20 px-1.5 py-0.5">
+                            <Text className="text-[10px] font-black uppercase text-neo-purple">
+                                Premium
+                            </Text>
+                        </View>
+                    )}
+                </View>
+                {endDate && canSetRecurrenceEndDate(isPremium) ? (
                     <View className="flex-row items-center gap-3">
                         <Pressable
                             onPress={handleOpenEndDatePicker}
@@ -408,15 +475,25 @@ export default function RecurrencePicker({
                 ) : (
                     <Pressable
                         onPress={handleOpenEndDatePicker}
-                        className="flex-row items-center justify-center gap-3 border-5 border-dashed border-gray-400 bg-transparent p-4 dark:border-neo-primary"
+                        className={cn(
+                            "flex-row items-center justify-center gap-3 border-5 p-4",
+                            !canSetRecurrenceEndDate(isPremium)
+                                ? "border-neo-purple/50 bg-neo-purple/10"
+                                : "border-dashed border-gray-400 bg-transparent dark:border-neo-primary"
+                        )}
                     >
                         <Ionicons
-                            name="calendar-outline"
+                            name={!canSetRecurrenceEndDate(isPremium) ? "lock-closed-sharp" : "calendar-outline"}
                             size={20}
-                            color={colorScheme === "dark" ? "#FF0055" : "#666"}
+                            color={!canSetRecurrenceEndDate(isPremium) ? "#B000FF" : colorScheme === "dark" ? "#FF0055" : "#666"}
                         />
-                        <Text className="font-black uppercase text-gray-500 dark:text-gray-400">
-                            Set End Date
+                        <Text className={cn(
+                            "font-black uppercase",
+                            !canSetRecurrenceEndDate(isPremium)
+                                ? "text-neo-purple"
+                                : "text-gray-500 dark:text-gray-400"
+                        )}>
+                            {!canSetRecurrenceEndDate(isPremium) ? "Unlock End Dates" : "Set End Date"}
                         </Text>
                     </Pressable>
                 )}
@@ -557,6 +634,13 @@ export default function RecurrencePicker({
                     isDarkModeEnabled={colorScheme === "dark"}
                 />
             </Modal>
+
+            {/* Paywall Sheet */}
+            <PaywallSheet
+                visible={showPaywall}
+                onClose={() => setShowPaywall(false)}
+                featureContext={paywallFeature}
+            />
         </View>
     );
 }

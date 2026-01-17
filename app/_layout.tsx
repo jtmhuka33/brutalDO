@@ -20,6 +20,7 @@ import { PomodoroProvider, usePomodoro } from "@/context/PomodoroContext";
 import { BulkEditProvider } from "@/context/BulkEditContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { UserProvider } from "@/context/UserContext";
+import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import ProjectDrawer from "@/components/ProjectDrawer";
 
 configureReanimatedLogger({
@@ -101,24 +102,26 @@ export default function RootLayout() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <UserProvider>
-                <SettingsProvider>
-                    <TodoListProvider>
-                        <ToastProvider>
-                            <PomodoroProvider>
-                                <BulkEditProvider>
-                                    <View
-                                        style={{
-                                            flex: 1,
-                                            backgroundColor: theme.background,
-                                        }}
-                                    >
-                                        <NavigationContent />
-                                    </View>
-                                </BulkEditProvider>
-                            </PomodoroProvider>
-                        </ToastProvider>
-                    </TodoListProvider>
-                </SettingsProvider>
+                <SubscriptionProvider>
+                    <SettingsProvider>
+                        <TodoListProvider>
+                            <ToastProvider>
+                                <PomodoroProvider>
+                                    <BulkEditProvider>
+                                        <View
+                                            style={{
+                                                flex: 1,
+                                                backgroundColor: theme.background,
+                                            }}
+                                        >
+                                            <NavigationContent />
+                                        </View>
+                                    </BulkEditProvider>
+                                </PomodoroProvider>
+                            </ToastProvider>
+                        </TodoListProvider>
+                    </SettingsProvider>
+                </SubscriptionProvider>
             </UserProvider>
         </GestureHandlerRootView>
     );

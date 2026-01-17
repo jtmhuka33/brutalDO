@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
     View,
     Text,
@@ -22,8 +22,12 @@ import * as Clipboard from "expo-clipboard";
 
 import { useSettings } from "@/context/SettingsContext";
 import { useUser } from "@/context/UserContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { POMODORO_LIMITS } from "@/types/settings";
+import { FREE_TIER_LIMITS } from "@/types/subscription";
+import { canCustomizePomodoro } from "@/utils/featureGates";
 import CompactNumberInput from "./CompactNumberInput";
+import PaywallSheet from "./PaywallSheet";
 
 interface SettingsPanelProps {
     visible: boolean;
@@ -35,6 +39,10 @@ export default function SettingsPanel({ visible, onClose }: SettingsPanelProps) 
     const colorScheme = useColorScheme();
     const { settings, updatePomodoroSettings, resetPomodoroSettings } = useSettings();
     const { userId } = useUser();
+    const { isPremium } = useSubscription();
+    const [showPaywall, setShowPaywall] = useState(false);
+
+    const canCustomize = canCustomizePomodoro(isPremium);
 
     const handleClose = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -177,61 +185,137 @@ export default function SettingsPanel({ visible, onClose }: SettingsPanelProps) 
 
                     {/* Pomodoro Timer Section */}
                     <Animated.View entering={FadeIn.delay(100).duration(200)}>
-                        <View className="mb-4 flex-row items-center gap-2">
-                            <View className="h-8 w-8 items-center justify-center border-4 border-black bg-neo-primary dark:border-neo-primary">
-                                <Ionicons name="timer-sharp" size={16} color="white" />
+                        <View className="mb-4 flex-row items-center justify-between">
+                            <View className="flex-row items-center gap-2">
+                                <View className="h-8 w-8 items-center justify-center border-4 border-black bg-neo-primary dark:border-neo-primary">
+                                    <Ionicons name="timer-sharp" size={16} color="white" />
+                                </View>
+                                <Text className="text-base font-black uppercase tracking-tight text-black dark:text-white">
+                                    Pomodoro Timer
+                                </Text>
                             </View>
-                            <Text className="text-base font-black uppercase tracking-tight text-black dark:text-white">
-                                Pomodoro Timer
-                            </Text>
+                            {!canCustomize && (
+                                <View className="border-2 border-neo-purple bg-neo-purple/20 px-2 py-0.5">
+                                    <Text className="text-[10px] font-black uppercase text-neo-purple">
+                                        Premium
+                                    </Text>
+                                </View>
+                            )}
                         </View>
 
                         <View className="border-5 border-black bg-white p-4 shadow-brutal-sm dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark-sm">
-                            <View className="gap-4">
-                                {/* Work Duration */}
-                                <CompactNumberInput
-                                    label="Focus Duration"
-                                    value={settings.pomodoro.workDuration}
-                                    min={POMODORO_LIMITS.workDuration.min}
-                                    max={POMODORO_LIMITS.workDuration.max}
-                                    unit="min"
-                                    onChange={handleWorkDurationChange}
-                                    colorClass="bg-neo-primary"
-                                />
+                            {canCustomize ? (
+                                <View className="gap-4">
+                                    {/* Work Duration */}
+                                    <CompactNumberInput
+                                        label="Focus Duration"
+                                        value={settings.pomodoro.workDuration}
+                                        min={POMODORO_LIMITS.workDuration.min}
+                                        max={POMODORO_LIMITS.workDuration.max}
+                                        unit="min"
+                                        onChange={handleWorkDurationChange}
+                                        colorClass="bg-neo-primary"
+                                    />
 
-                                {/* Short Break Duration */}
-                                <CompactNumberInput
-                                    label="Short Break"
-                                    value={settings.pomodoro.shortBreakDuration}
-                                    min={POMODORO_LIMITS.shortBreakDuration.min}
-                                    max={POMODORO_LIMITS.shortBreakDuration.max}
-                                    unit="min"
-                                    onChange={handleShortBreakChange}
-                                    colorClass="bg-neo-green"
-                                />
+                                    {/* Short Break Duration */}
+                                    <CompactNumberInput
+                                        label="Short Break"
+                                        value={settings.pomodoro.shortBreakDuration}
+                                        min={POMODORO_LIMITS.shortBreakDuration.min}
+                                        max={POMODORO_LIMITS.shortBreakDuration.max}
+                                        unit="min"
+                                        onChange={handleShortBreakChange}
+                                        colorClass="bg-neo-green"
+                                    />
 
-                                {/* Long Break Duration */}
-                                <CompactNumberInput
-                                    label="Long Break"
-                                    value={settings.pomodoro.longBreakDuration}
-                                    min={POMODORO_LIMITS.longBreakDuration.min}
-                                    max={POMODORO_LIMITS.longBreakDuration.max}
-                                    unit="min"
-                                    onChange={handleLongBreakChange}
-                                    colorClass="bg-neo-purple"
-                                />
+                                    {/* Long Break Duration */}
+                                    <CompactNumberInput
+                                        label="Long Break"
+                                        value={settings.pomodoro.longBreakDuration}
+                                        min={POMODORO_LIMITS.longBreakDuration.min}
+                                        max={POMODORO_LIMITS.longBreakDuration.max}
+                                        unit="min"
+                                        onChange={handleLongBreakChange}
+                                        colorClass="bg-neo-purple"
+                                    />
 
-                                {/* Sessions Before Long Break */}
-                                <CompactNumberInput
-                                    label="Sessions Before Long Break"
-                                    value={settings.pomodoro.sessionsBeforeLongBreak}
-                                    min={POMODORO_LIMITS.sessionsBeforeLongBreak.min}
-                                    max={POMODORO_LIMITS.sessionsBeforeLongBreak.max}
-                                    unit="sessions"
-                                    onChange={handleSessionsChange}
-                                    colorClass="bg-neo-orange"
-                                />
-                            </View>
+                                    {/* Sessions Before Long Break */}
+                                    <CompactNumberInput
+                                        label="Sessions Before Long Break"
+                                        value={settings.pomodoro.sessionsBeforeLongBreak}
+                                        min={POMODORO_LIMITS.sessionsBeforeLongBreak.min}
+                                        max={POMODORO_LIMITS.sessionsBeforeLongBreak.max}
+                                        unit="sessions"
+                                        onChange={handleSessionsChange}
+                                        colorClass="bg-neo-orange"
+                                    />
+                                </View>
+                            ) : (
+                                <View className="gap-3">
+                                    {/* Locked: Read-only display of default values */}
+                                    <View className="flex-row items-center justify-between border-3 border-gray-300 bg-gray-100 p-3 dark:border-gray-600 dark:bg-neo-dark-elevated">
+                                        <View className="flex-row items-center gap-2">
+                                            <Ionicons name="time-sharp" size={16} color="#FF0055" />
+                                            <Text className="text-sm font-black uppercase text-gray-600 dark:text-gray-300">
+                                                Focus Duration
+                                            </Text>
+                                        </View>
+                                        <Text className="text-lg font-black text-gray-500 dark:text-gray-400">
+                                            {FREE_TIER_LIMITS.pomodoroDefaults.workDuration} min
+                                        </Text>
+                                    </View>
+
+                                    <View className="flex-row items-center justify-between border-3 border-gray-300 bg-gray-100 p-3 dark:border-gray-600 dark:bg-neo-dark-elevated">
+                                        <View className="flex-row items-center gap-2">
+                                            <Ionicons name="cafe-sharp" size={16} color="#00FF41" />
+                                            <Text className="text-sm font-black uppercase text-gray-600 dark:text-gray-300">
+                                                Short Break
+                                            </Text>
+                                        </View>
+                                        <Text className="text-lg font-black text-gray-500 dark:text-gray-400">
+                                            {FREE_TIER_LIMITS.pomodoroDefaults.shortBreakDuration} min
+                                        </Text>
+                                    </View>
+
+                                    <View className="flex-row items-center justify-between border-3 border-gray-300 bg-gray-100 p-3 dark:border-gray-600 dark:bg-neo-dark-elevated">
+                                        <View className="flex-row items-center gap-2">
+                                            <Ionicons name="bed-sharp" size={16} color="#B000FF" />
+                                            <Text className="text-sm font-black uppercase text-gray-600 dark:text-gray-300">
+                                                Long Break
+                                            </Text>
+                                        </View>
+                                        <Text className="text-lg font-black text-gray-500 dark:text-gray-400">
+                                            {FREE_TIER_LIMITS.pomodoroDefaults.longBreakDuration} min
+                                        </Text>
+                                    </View>
+
+                                    <View className="flex-row items-center justify-between border-3 border-gray-300 bg-gray-100 p-3 dark:border-gray-600 dark:bg-neo-dark-elevated">
+                                        <View className="flex-row items-center gap-2">
+                                            <Ionicons name="repeat-sharp" size={16} color="#FF6B00" />
+                                            <Text className="text-sm font-black uppercase text-gray-600 dark:text-gray-300">
+                                                Sessions
+                                            </Text>
+                                        </View>
+                                        <Text className="text-lg font-black text-gray-500 dark:text-gray-400">
+                                            {FREE_TIER_LIMITS.pomodoroDefaults.sessionsBeforeLongBreak}
+                                        </Text>
+                                    </View>
+
+                                    {/* Unlock Button */}
+                                    <Pressable
+                                        onPress={async () => {
+                                            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                            setShowPaywall(true);
+                                        }}
+                                        className="mt-2 flex-row items-center justify-center gap-2 border-4 border-neo-purple bg-neo-purple p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:shadow-brutal-dark-sm"
+                                    >
+                                        <Ionicons name="diamond-sharp" size={18} color="white" />
+                                        <Text className="text-sm font-black uppercase text-white">
+                                            Unlock Custom Timers
+                                        </Text>
+                                    </Pressable>
+                                </View>
+                            )}
                         </View>
                     </Animated.View>
 
@@ -256,22 +340,24 @@ export default function SettingsPanel({ visible, onClose }: SettingsPanelProps) 
                         </View>
                     </Animated.View>
 
-                    {/* Reset Button */}
-                    <Animated.View entering={FadeIn.delay(200).duration(200)}>
-                        <Pressable
-                            onPress={handleResetPomodoro}
-                            className="mt-4 flex-row items-center justify-center gap-2 border-5 border-black bg-gray-300 p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-elevated dark:shadow-brutal-dark-sm rotate-1"
-                        >
-                            <Ionicons
-                                name="refresh-sharp"
-                                size={20}
-                                color={colorScheme === "dark" ? "white" : "black"}
-                            />
-                            <Text className="text-sm font-black uppercase tracking-tight text-black dark:text-white">
-                                Reset to Defaults
-                            </Text>
-                        </Pressable>
-                    </Animated.View>
+                    {/* Reset Button - Only show for premium users */}
+                    {canCustomize && (
+                        <Animated.View entering={FadeIn.delay(200).duration(200)}>
+                            <Pressable
+                                onPress={handleResetPomodoro}
+                                className="mt-4 flex-row items-center justify-center gap-2 border-5 border-black bg-gray-300 p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-elevated dark:shadow-brutal-dark-sm rotate-1"
+                            >
+                                <Ionicons
+                                    name="refresh-sharp"
+                                    size={20}
+                                    color={colorScheme === "dark" ? "white" : "black"}
+                                />
+                                <Text className="text-sm font-black uppercase tracking-tight text-black dark:text-white">
+                                    Reset to Defaults
+                                </Text>
+                            </Pressable>
+                        </Animated.View>
+                    )}
 
                     {/* Future Settings Placeholder */}
                     <Animated.View entering={FadeIn.delay(250).duration(200)}>
@@ -292,6 +378,13 @@ export default function SettingsPanel({ visible, onClose }: SettingsPanelProps) 
                     </Animated.View>
                 </ScrollView>
             </Animated.View>
+
+            {/* Paywall Sheet */}
+            <PaywallSheet
+                visible={showPaywall}
+                onClose={() => setShowPaywall(false)}
+                featureContext="custom Pomodoro timers"
+            />
         </Modal>
     );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, Pressable, useColorScheme} from "react-native";
+import { View, Text, Pressable, useColorScheme } from "react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
@@ -15,6 +15,9 @@ import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import * as Haptics from "expo-haptics";
 import { Reminder } from "@/types/todo";
+import { useSubscription } from "@/context/SubscriptionContext";
+import { canAddMoreReminders } from "@/utils/featureGates";
+import PaywallSheet from "./PaywallSheet";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -39,8 +42,12 @@ export default function MultiReminderPicker({
                                                 onRemoveReminder,
                                             }: MultiReminderPickerProps) {
     const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+    const [showPaywall, setShowPaywall] = useState(false);
     const colorScheme = useColorScheme();
     const scale = useSharedValue(1);
+    const { isPremium } = useSubscription();
+
+    const canAddMore = canAddMoreReminders(reminders.length, isPremium);
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
@@ -57,9 +64,15 @@ export default function MultiReminderPicker({
     }, []);
 
     const showDatePicker = useCallback(async () => {
+        // Check if user can add more reminders
+        if (!canAddMore) {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowPaywall(true);
+            return;
+        }
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setDatePickerVisibility(true);
-    }, []);
+    }, [canAddMore]);
 
     const hideDatePicker = useCallback(() => {
         setDatePickerVisibility(false);
@@ -205,19 +218,32 @@ export default function MultiReminderPicker({
                 style={animatedStyle}
                 className={cn(
                     "flex-row items-center justify-center gap-3 border-5 border-black p-4 shadow-brutal active:translate-x-[8px] active:translate-y-[8px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                    reminders.length > 0
-                        ? "bg-gray-300 dark:bg-neo-dark-surface"
-                        : "bg-neo-secondary"
+                    !canAddMore
+                        ? "bg-neo-purple"
+                        : reminders.length > 0
+                            ? "bg-gray-300 dark:bg-neo-dark-surface"
+                            : "bg-neo-secondary"
                 )}
             >
-                <Ionicons
-                    name={reminders.length > 0 ? "add-sharp" : "alarm-sharp"}
-                    size={24}
-                    color={colorScheme === 'light' ? "black" : "white"}
-                />
-                <Text className={`font-black uppercase tracking-tight text-base ${colorScheme === 'dark' ? 'text-white' : 'text-black'}`}>
-                    {reminders.length > 0 ? "ADD ANOTHER REMINDER" : "SET REMINDER"}
-                </Text>
+                {!canAddMore ? (
+                    <>
+                        <Ionicons name="diamond-sharp" size={20} color="white" />
+                        <Text className="font-black uppercase tracking-tight text-base text-white">
+                            Upgrade for More Reminders
+                        </Text>
+                    </>
+                ) : (
+                    <>
+                        <Ionicons
+                            name={reminders.length > 0 ? "add-sharp" : "alarm-sharp"}
+                            size={24}
+                            color={colorScheme === 'light' ? "black" : "white"}
+                        />
+                        <Text className={`font-black uppercase tracking-tight text-base ${colorScheme === 'dark' ? 'text-white' : 'text-black'}`}>
+                            {reminders.length > 0 ? "ADD ANOTHER REMINDER" : "SET REMINDER"}
+                        </Text>
+                    </>
+                )}
             </AnimatedPressable>
 
             {/* Helper Text */}
@@ -234,6 +260,13 @@ export default function MultiReminderPicker({
                 onCancel={hideDatePicker}
                 minimumDate={new Date()}
                 isDarkModeEnabled={colorScheme === "dark"}
+            />
+
+            {/* Paywall Sheet */}
+            <PaywallSheet
+                visible={showPaywall}
+                onClose={() => setShowPaywall(false)}
+                featureContext="multiple reminders"
             />
         </View>
     );
