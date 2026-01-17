@@ -185,7 +185,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                                     >
                                         {isDefault ? (
                                             <Ionicons
-                                                name="filing-sharp"
+                                                name="file-tray-sharp"
                                                 size={16}
                                                 color={isSelected ? "#FF0055" : "black"}
                                             />

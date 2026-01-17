@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, AppState, AppStateStatus, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -223,7 +223,7 @@ export default function PomodoroTimer({
     }, [isRunning, endTime, timerState, sessionsCompleted, handleTimerComplete]);
 
     useEffect(() => {
-        const handleAppStateChange = async (nextAppState: string) => {
+        const handleAppStateChange = async (nextAppState: AppStateStatus) => {
             const previousState = appStateRef.current;
             appStateRef.current = nextAppState;
 

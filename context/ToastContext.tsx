@@ -24,10 +24,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         message: "",
         deletedTodo: null,
     });
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const hideToast = useCallback(() => {
-        if (timeoutRef.current) {
+        if (timeoutRef.current !== null) {
             clearTimeout(timeoutRef.current);
             timeoutRef.current = null;
         }
@@ -36,7 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
     const showDeleteToast = useCallback((todo: Todo, message?: string) => {
         // Clear any existing timeout
-        if (timeoutRef.current) {
+        if (timeoutRef.current !== null) {
             clearTimeout(timeoutRef.current);
         }
 
@@ -47,9 +47,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         });
 
         // Auto-hide after duration
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         timeoutRef.current = setTimeout(() => {
             hideToast();
-        }, TOAST_DURATION);
+        }, TOAST_DURATION) as any;
     }, [hideToast]);
 
     const undoDelete = useCallback((): Todo | null => {

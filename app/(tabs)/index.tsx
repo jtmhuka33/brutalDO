@@ -62,8 +62,8 @@ export default function TodoApp() {
     const [showArchive, setShowArchive] = useState(false);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const colorScheme = useColorScheme();
-    const notificationListener = useRef<Notifications.EventSubscription>();
-    const responseListener = useRef<Notifications.EventSubscription>();
+    const notificationListener = useRef<Notifications.EventSubscription | undefined>(undefined);
+    const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
     const { showDeleteToast, toast } = useToast();

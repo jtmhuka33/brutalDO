@@ -362,7 +362,7 @@ export default function ZenMode() {
         if (router.canGoBack()) {
             router.back();
         } else {
-            router.replace("/(tabs)/");
+            router.replace("/(tabs)");
         }
     };
 
@@ -379,7 +379,7 @@ export default function ZenMode() {
                             if (router.canGoBack()) {
                                 router.back();
                             } else {
-                                router.replace("/(tabs)/");
+                                router.replace("/(tabs)");
                             }
                         },
                     },
@@ -389,7 +389,7 @@ export default function ZenMode() {
             if (router.canGoBack()) {
                 router.back();
             } else {
-                router.replace("/(tabs)/");
+                router.replace("/(tabs)");
             }
         }
     };
