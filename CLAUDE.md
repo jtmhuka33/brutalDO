@@ -110,3 +110,7 @@ Uses Drawer + Stack pattern:
 - Stack screens under `(tabs)/` for main navigation
 - Use `router.push()` for navigation, `router.replace()` for replacement
 - Route params via `useLocalSearchParams<{ paramName: type }>()`
+
+### Instructions
+
+Always research best practices for expo, react native and tailwind css. Ensure light and dark mode work. Everything is in a neo brutalist style. Always research best practices to implement the feature or fix in question
