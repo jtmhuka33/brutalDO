@@ -22,9 +22,9 @@ export interface SubscriptionState {
 }
 
 export const PRODUCT_IDS = {
-    monthly: "com.jtmhuka33.brutraldo.premium.monthly",
-    yearly: "com.jtmhuka33.brutraldo.premium.yearly",
-    lifetime: "com.jtmhuka33.brutraldo.premium.lifetime",
+    monthly: "com.jtmhuka33.brutaldo.premium.monthly",
+    yearly: "com.jtmhuka33.brutaldo.premium.yearly",
+    lifetime: "com.jtmhuka33.brutaldo.premium.lifetime",
 } as const;
 
 export const ALL_PRODUCT_SKUS = [

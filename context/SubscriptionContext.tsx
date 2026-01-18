@@ -41,16 +41,24 @@ function mapProductType(productId: string): "monthly" | "yearly" | "lifetime" {
     return "lifetime";
 }
 
+// Helper to get product ID from various possible property names
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getProductId(product: any): string {
+    // expo-iap can use 'id' on iOS and 'productId' on Android
+    return product.id || product.productId || "";
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapProduct(product: any): SubscriptionProduct {
+    const productId = getProductId(product);
     return {
-        id: product.id,
-        title: product.title || "Premium",
+        id: productId,
+        title: product.title || product.name || "Premium",
         description: product.description || "",
-        price: product.displayPrice || "$0.00",
+        price: product.displayPrice || product.localizedPrice || "$0.00",
         priceAmount: product.price || 0,
         currency: product.currency || "USD",
-        type: mapProductType(product.id),
+        type: mapProductType(productId),
     };
 }
 
@@ -141,7 +149,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
                 setStatus("ready");
             } catch (e) {
-                console.error("Failed to fetch products:", e);
+                console.error("[IAP] Failed to fetch products:", e);
                 setError("Unable to connect to store");
                 setStatus("ready"); // Still allow app to work
             }
@@ -153,9 +161,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     // Map IAP products to our format
     useEffect(() => {
         const allProducts = [...(iapProducts || []), ...(subscriptions || [])];
+
         if (allProducts.length > 0) {
             const mapped = allProducts
-                .filter((p: { id: string }) => ALL_PRODUCT_SKUS.includes(p.id as typeof ALL_PRODUCT_SKUS[number]))
+                .filter((p) => {
+                    const productId = getProductId(p);
+                    return ALL_PRODUCT_SKUS.includes(productId as typeof ALL_PRODUCT_SKUS[number]);
+                })
                 .map(mapProduct);
             setProducts(mapped);
         }
@@ -164,9 +176,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     // Check available purchases for premium status
     useEffect(() => {
         if (availablePurchases && availablePurchases.length > 0) {
-            const hasPremium = availablePurchases.some((p: { productId: string }) =>
-                ALL_PRODUCT_SKUS.includes(p.productId as typeof ALL_PRODUCT_SKUS[number])
-            );
+            const hasPremium = availablePurchases.some((p) => {
+                const productId = getProductId(p);
+                return ALL_PRODUCT_SKUS.includes(productId as typeof ALL_PRODUCT_SKUS[number]);
+            });
             if (hasPremium) {
                 setTier("premium");
                 savePremiumStatus(true);
@@ -187,7 +200,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
             try {
                 const allProducts = [...(iapProducts || []), ...(subscriptions || [])];
-                const product = allProducts.find((p: { id: string }) => p.id === productId);
+                const product = allProducts.find((p) => getProductId(p) === productId);
 
                 if (!product) {
                     throw new Error("Product not found");
@@ -202,7 +215,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
                     const offers = subProduct.subscriptionOffers
                         ?.filter((o: { offerTokenAndroid?: string }) => o.offerTokenAndroid)
                         .map((o: { offerTokenAndroid: string }) => ({
-                            sku: product.id,
+                            sku: productId,
                             offerToken: o.offerTokenAndroid,
                         })) || [];
 
@@ -256,9 +269,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
             await new Promise(resolve => setTimeout(resolve, 500));
 
             // Check if any purchases grant premium
-            const hasPremium = availablePurchases?.some((p: { productId: string }) =>
-                ALL_PRODUCT_SKUS.includes(p.productId as typeof ALL_PRODUCT_SKUS[number])
-            );
+            const hasPremium = availablePurchases?.some((p) => {
+                const pId = getProductId(p);
+                return ALL_PRODUCT_SKUS.includes(pId as typeof ALL_PRODUCT_SKUS[number]);
+            });
 
             if (hasPremium) {
                 setTier("premium");
