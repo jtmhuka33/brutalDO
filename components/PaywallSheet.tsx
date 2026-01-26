@@ -50,12 +50,14 @@ function PricingCard({
     isRecommended,
     isLifetime,
     onPurchase,
+    isDisabled,
     isPurchasing,
 }: {
     product: SubscriptionProduct;
     isRecommended?: boolean;
     isLifetime?: boolean;
     onPurchase: () => void;
+    isDisabled: boolean;
     isPurchasing: boolean;
 }) {
     const scale = useSharedValue(1);
@@ -99,7 +101,7 @@ function PricingCard({
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
             style={animatedStyle}
-            disabled={isPurchasing}
+            disabled={isDisabled}
             className={cn(
                 "border-5 border-black p-4 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
                 isLifetime
@@ -108,7 +110,8 @@ function PricingCard({
                         ? "bg-neo-accent"
                         : "bg-white dark:bg-neo-dark-surface",
                 isRecommended && "-rotate-1",
-                isLifetime && "rotate-1"
+                isLifetime && "rotate-1",
+                isDisabled && "opacity-70"
             )}
         >
             {/* Badge */}
@@ -190,11 +193,15 @@ export default function PaywallSheet({
         products,
         isPurchasing,
         isRestoring,
+        isReady,
         purchase,
         restore,
         error,
         clearError,
     } = useSubscription();
+
+    // Disable purchase buttons when not ready or during purchase/restore
+    const isActionDisabled = !isReady || isPurchasing || isRestoring;
 
     const handleClose = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -358,6 +365,7 @@ export default function PaywallSheet({
                                         product={yearlyProduct}
                                         isRecommended
                                         onPurchase={() => handlePurchase(yearlyProduct.id)}
+                                        isDisabled={isActionDisabled}
                                         isPurchasing={isPurchasing}
                                     />
                                 )}
@@ -365,6 +373,7 @@ export default function PaywallSheet({
                                     <PricingCard
                                         product={monthlyProduct}
                                         onPurchase={() => handlePurchase(monthlyProduct.id)}
+                                        isDisabled={isActionDisabled}
                                         isPurchasing={isPurchasing}
                                     />
                                 )}
@@ -373,6 +382,7 @@ export default function PaywallSheet({
                                         product={lifetimeProduct}
                                         isLifetime
                                         onPurchase={() => handlePurchase(lifetimeProduct.id)}
+                                        isDisabled={isActionDisabled}
                                         isPurchasing={isPurchasing}
                                     />
                                 )}
@@ -384,8 +394,11 @@ export default function PaywallSheet({
                     <Animated.View entering={FadeIn.delay(300).duration(200)} className="mt-6">
                         <Pressable
                             onPress={handleRestore}
-                            disabled={isRestoring}
-                            className="mb-4 items-center justify-center border-4 border-dashed border-gray-400 bg-transparent p-3 dark:border-neo-primary"
+                            disabled={isActionDisabled}
+                            className={cn(
+                                "mb-4 items-center justify-center border-4 border-dashed border-gray-400 bg-transparent p-3 dark:border-neo-primary",
+                                isActionDisabled && "opacity-70"
+                            )}
                         >
                             {isRestoring ? (
                                 <ActivityIndicator

@@ -39,7 +39,7 @@ export default function SettingsPanel({ visible, onClose }: SettingsPanelProps) 
     const colorScheme = useColorScheme();
     const { settings, updatePomodoroSettings, resetPomodoroSettings } = useSettings();
     const { userId } = useUser();
-    const { isPremium } = useSubscription();
+    const { isPremium, devSetPremium } = useSubscription();
     const [showPaywall, setShowPaywall] = useState(false);
 
     const canCustomize = canCustomizePomodoro(isPremium);
@@ -376,6 +376,71 @@ export default function SettingsPanel({ visible, onClose }: SettingsPanelProps) 
                             </View>
                         </View>
                     </Animated.View>
+
+                    {/* Developer Tools - Only visible in development */}
+                    {__DEV__ && (
+                        <Animated.View entering={FadeIn.delay(300).duration(200)}>
+                            <View className="mt-4 border-t-4 border-dashed border-neo-primary pt-4">
+                                <View className="mb-3 flex-row items-center gap-2">
+                                    <View className="h-8 w-8 items-center justify-center border-4 border-neo-primary bg-neo-primary">
+                                        <Ionicons name="bug-sharp" size={16} color="white" />
+                                    </View>
+                                    <Text className="text-base font-black uppercase tracking-tight text-neo-primary">
+                                        Developer Tools
+                                    </Text>
+                                </View>
+
+                                <View className="border-5 border-neo-primary bg-neo-primary/10 p-4">
+                                    <View className="flex-row items-center justify-between mb-3">
+                                        <View>
+                                            <Text className="text-sm font-black uppercase text-black dark:text-white">
+                                                Premium Status
+                                            </Text>
+                                            <Text className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                                                Toggle for testing paywalls
+                                            </Text>
+                                        </View>
+                                        <View className={`px-3 py-1 border-3 ${isPremium ? "border-neo-green bg-neo-green" : "border-gray-400 bg-gray-300"}`}>
+                                            <Text className={`text-xs font-black uppercase ${isPremium ? "text-black" : "text-gray-600"}`}>
+                                                {isPremium ? "Premium" : "Free"}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View className="flex-row gap-2">
+                                        <Pressable
+                                            onPress={() => devSetPremium(false)}
+                                            className={`flex-1 items-center justify-center border-4 p-3 ${
+                                                !isPremium
+                                                    ? "border-black bg-gray-400"
+                                                    : "border-gray-400 bg-white active:bg-gray-100 dark:bg-neo-dark-surface"
+                                            }`}
+                                        >
+                                            <Text className={`text-sm font-black uppercase ${!isPremium ? "text-white" : "text-black dark:text-white"}`}>
+                                                Set Free
+                                            </Text>
+                                        </Pressable>
+                                        <Pressable
+                                            onPress={() => devSetPremium(true)}
+                                            className={`flex-1 items-center justify-center border-4 p-3 ${
+                                                isPremium
+                                                    ? "border-neo-green bg-neo-green"
+                                                    : "border-neo-green bg-white active:bg-gray-100 dark:bg-neo-dark-surface"
+                                            }`}
+                                        >
+                                            <Text className={`text-sm font-black uppercase ${isPremium ? "text-black" : "text-neo-green"}`}>
+                                                Set Premium
+                                            </Text>
+                                        </Pressable>
+                                    </View>
+
+                                    <Text className="mt-3 text-[10px] font-bold text-center text-neo-primary uppercase">
+                                        This section is only visible in development builds
+                                    </Text>
+                                </View>
+                            </View>
+                        </Animated.View>
+                    )}
                 </ScrollView>
             </Animated.View>
 
