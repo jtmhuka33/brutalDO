@@ -119,6 +119,8 @@ export default function RecurrencePicker({
             // Check if this recurrence type requires premium
             if (!isRecurrenceTypeAvailable(type, isPremium)) {
                 setPaywallFeature(type === "biweekly" ? "biweekly recurrence" : "custom recurrence");
+                // Close the recurrence modal first, then show paywall to avoid modal stacking issues
+                closeModal();
                 setShowPaywall(true);
                 return;
             }
@@ -129,6 +131,8 @@ export default function RecurrencePicker({
             if (option?.showDayPicker) {
                 if (!canSelectCustomRecurrenceDays(isPremium)) {
                     setPaywallFeature("custom day selection");
+                    // Close the recurrence modal first, then show paywall to avoid modal stacking issues
+                    closeModal();
                     setShowPaywall(true);
                     return;
                 }
@@ -182,12 +186,14 @@ export default function RecurrencePicker({
         // Check if premium is required for end dates
         if (!canSetRecurrenceEndDate(isPremium)) {
             setPaywallFeature("recurrence end dates");
+            // Close the recurrence modal first, then show paywall to avoid modal stacking issues
+            closeModal();
             setShowPaywall(true);
             return;
         }
 
         setShowEndDatePicker(true);
-    }, [isPremium]);
+    }, [isPremium, closeModal]);
 
     const handleEndDateConfirm = useCallback((date: Date) => {
         setEndDate(date);
