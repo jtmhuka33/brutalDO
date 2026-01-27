@@ -67,12 +67,16 @@ export default function MultiReminderPicker({
         // Check if user can add more reminders
         if (!canAddMore) {
             await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowPaywall(true);
+            // Only show paywall for non-premium users
+            // Premium users have hit their limit, no action needed
+            if (!isPremium) {
+                setShowPaywall(true);
+            }
             return;
         }
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setDatePickerVisibility(true);
-    }, [canAddMore]);
+    }, [canAddMore, isPremium]);
 
     const hideDatePicker = useCallback(() => {
         setDatePickerVisibility(false);
@@ -226,12 +230,23 @@ export default function MultiReminderPicker({
                 )}
             >
                 {!canAddMore ? (
-                    <>
-                        <Ionicons name="diamond-sharp" size={20} color="white" />
-                        <Text className="font-black uppercase tracking-tight text-base text-white">
-                            Upgrade for More Reminders
-                        </Text>
-                    </>
+                    isPremium ? (
+                        // Premium user has hit the 10 reminder limit
+                        <>
+                            <Ionicons name="alert-circle-sharp" size={20} color="white" />
+                            <Text className="font-black uppercase tracking-tight text-base text-white">
+                                Reminder Limit Reached
+                            </Text>
+                        </>
+                    ) : (
+                        // Free user - show upgrade prompt
+                        <>
+                            <Ionicons name="diamond-sharp" size={20} color="white" />
+                            <Text className="font-black uppercase tracking-tight text-base text-white">
+                                Upgrade for More Reminders
+                            </Text>
+                        </>
+                    )
                 ) : (
                     <>
                         <Ionicons
