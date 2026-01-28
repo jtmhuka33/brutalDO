@@ -31,7 +31,7 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 const LIST_COLORS = [
     "bg-neo-accent",
     "bg-neo-secondary",
-    "bg-neo-primary",
+    "bg-neo-blue",
     "bg-neo-purple",
     "bg-neo-green",
     "bg-neo-orange",

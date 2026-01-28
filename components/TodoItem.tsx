@@ -30,14 +30,7 @@ function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
 }
 
-const CARD_COLORS = [
-    "bg-neo-accent dark:bg-neo-accent",
-    "bg-neo-secondary dark:bg-neo-secondary",
-    "bg-neo-primary dark:bg-neo-primary",
-    "bg-neo-purple dark:bg-neo-purple",
-    "bg-neo-green dark:bg-neo-green",
-    "bg-neo-orange dark:bg-neo-orange",
-];
+const CARD_COLOR = "bg-white dark:bg-neo-dark-surface";
 
 const TIMING_CONFIG_FAST = {
     duration: 150,
@@ -87,7 +80,7 @@ export default function TodoItem({
                                      onToggleSubtask,
                                      onDeleteSubtask,
                                  }: TodoItemProps) {
-    const colorClass = CARD_COLORS[item.colorVariant ?? index % CARD_COLORS.length];
+    const colorClass = CARD_COLOR;
     const [showDetails, setShowDetails] = useState(false);
     const {isBulkMode, selectedIds, toggleSelection} = useBulkEdit();
 
@@ -248,7 +241,7 @@ export default function TodoItem({
                     activeOpacity={0.7}
                 >
                     <View>
-                        <Text className="text-md font-black uppercase tracking-tight text-black dark:text-black">
+                        <Text className="text-md font-black uppercase tracking-tight text-black dark:text-white">
                             {item.text}
                         </Text>
                     </View>
@@ -302,14 +295,14 @@ export default function TodoItem({
                                 {item.dueDate && (
                                     <View
                                         className={cn(
-                                            "flex-row items-center gap-1 px-2 py-1 border-3 border-black",
+                                            "flex-row items-center gap-1 px-2 py-1 border-3",
                                             isDueDateOverdue(item.dueDate)
-                                                ? "bg-neo-primary"
+                                                ? "border-black bg-neo-primary"
                                                 : isDueDateToday(item.dueDate)
-                                                    ? "bg-neo-orange"
+                                                    ? "border-black bg-neo-orange"
                                                     : isDueDateTomorrow(item.dueDate)
-                                                        ? "bg-neo-accent"
-                                                        : "bg-white dark:bg-neo-dark-surface"
+                                                        ? "border-black bg-neo-accent"
+                                                        : "border-black dark:border-white bg-white dark:bg-neo-dark-surface"
                                         )}
                                     >
                                         <Ionicons

@@ -37,6 +37,7 @@ module.exports = {
                     purple: "#B000FF", // Electric Purple
                     green: "#00FF41", // Matrix Green
                     orange: "#FF6B00", // Vivid Orange
+                    blue: "#3B82F6", // Electric Blue
                     white: "#FFFFFF",
                     black: "#000000",
                     // Dark mode text utilities for maximum contrast
