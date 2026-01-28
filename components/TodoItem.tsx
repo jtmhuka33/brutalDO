@@ -241,7 +241,7 @@ export default function TodoItem({
                     activeOpacity={0.7}
                 >
                     <View>
-                        <Text className="text-md font-black uppercase tracking-tight text-black dark:text-white">
+                        <Text numberOfLines={2} className="text-md font-black uppercase tracking-tight text-black dark:text-white">
                             {item.text}
                         </Text>
                     </View>
@@ -396,6 +396,24 @@ export default function TodoItem({
                         className="mb-3 text-xs font-black uppercase tracking-widest text-gray-700 dark:text-gray-700">
                         Task Details
                     </Text>
+
+                    {/* Full Title - only when likely truncated */}
+                    {item.text.length > 60 && (
+                        <View className="mb-3 flex-row items-start gap-3">
+                            <View className="h-8 w-8 items-center justify-center border-3 border-black bg-neo-accent dark:border-neo-primary">
+                                <Ionicons name="document-text-sharp" size={16} color="black"/>
+                            </View>
+                            <View className="flex-1">
+                                <Text
+                                    className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
+                                    Full Title
+                                </Text>
+                                <Text className="text-sm font-black uppercase text-black dark:text-white">
+                                    {item.text}
+                                </Text>
+                            </View>
+                        </View>
+                    )}
 
                     {/* Priority */}
                     <View className="mb-3 flex-row items-start gap-3">
