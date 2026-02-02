@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, AppStateStatus, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +28,7 @@ interface PomodoroTimerProps {
 }
 
 const TIMER_STORAGE_KEY = "@pomodoro_timer_state";
+const SESSIONS_STORAGE_PREFIX = "@pomodoro_sessions_";
 
 type TimerState = "work" | "shortBreak" | "longBreak";
 
@@ -155,6 +156,24 @@ export default function PomodoroTimer({
         }
     }, [setActiveTimer]);
 
+    const sessionsStorageKey = `${SESSIONS_STORAGE_PREFIX}${taskId}`;
+
+    const persistSessionsCount = useCallback(async (count: number) => {
+        try {
+            await AsyncStorage.setItem(sessionsStorageKey, JSON.stringify(count));
+        } catch (e) {
+            console.error("Failed to persist sessions count:", e);
+        }
+    }, [sessionsStorageKey]);
+
+    const clearSessionsCount = useCallback(async () => {
+        try {
+            await AsyncStorage.removeItem(sessionsStorageKey);
+        } catch (e) {
+            console.error("Failed to clear sessions count:", e);
+        }
+    }, [sessionsStorageKey]);
+
     const handleTimerComplete = useCallback(async (currentState: TimerState, currentSessions: number) => {
         setEndTime(null);
         setIsRunning(false);
@@ -164,6 +183,7 @@ export default function PomodoroTimer({
         if (currentState === "work") {
             const newSessionsCompleted = currentSessions + 1;
             setSessionsCompleted(newSessionsCompleted);
+            await persistSessionsCount(newSessionsCompleted);
 
             const isLongBreak = newSessionsCompleted % SESSIONS_BEFORE_LONG_BREAK === 0;
             const nextState = isLongBreak ? "longBreak" : "shortBreak";
@@ -185,7 +205,7 @@ export default function PomodoroTimer({
                 [{ text: "Let's go!" }]
             );
         }
-    }, [getTimerDuration, clearPersistedState, WORK_TIME, SESSIONS_BEFORE_LONG_BREAK]);
+    }, [getTimerDuration, clearPersistedState, persistSessionsCount, WORK_TIME, SESSIONS_BEFORE_LONG_BREAK]);
 
     useEffect(() => {
         if (!isRunning || !endTime) {
@@ -300,6 +320,16 @@ export default function PomodoroTimer({
             } else {
                 // Initialize with fresh values from settings
                 setTimeLeft(WORK_TIME);
+
+                // Load persisted session count for this task
+                try {
+                    const storedSessions = await AsyncStorage.getItem(sessionsStorageKey);
+                    if (storedSessions) {
+                        setSessionsCompleted(JSON.parse(storedSessions));
+                    }
+                } catch (e) {
+                    console.error("Failed to load sessions count:", e);
+                }
             }
 
             setIsInitialized(true);
@@ -309,8 +339,15 @@ export default function PomodoroTimer({
     }, []);
 
     // Update timeLeft when settings change and timer is not running
+    const prevPomodoroSettingsRef = useRef(pomodoroSettings);
     useEffect(() => {
-        if (isInitialized && !isRunning) {
+        const settingsChanged =
+            prevPomodoroSettingsRef.current.workDuration !== pomodoroSettings.workDuration ||
+            prevPomodoroSettingsRef.current.shortBreakDuration !== pomodoroSettings.shortBreakDuration ||
+            prevPomodoroSettingsRef.current.longBreakDuration !== pomodoroSettings.longBreakDuration;
+        prevPomodoroSettingsRef.current = pomodoroSettings;
+
+        if (isInitialized && !isRunning && settingsChanged) {
             setTimeLeft(getTimerDuration(timerState));
         }
     }, [pomodoroSettings, isInitialized, isRunning, timerState, getTimerDuration]);
@@ -378,13 +415,15 @@ export default function PomodoroTimer({
                         setIsRunning(false);
                         setTimerState("work");
                         setTimeLeft(WORK_TIME);
+                        setSessionsCompleted(0);
                         await clearPersistedState();
+                        await clearSessionsCount();
                         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                     },
                 },
             ]
         );
-    }, [notificationId, clearPersistedState, WORK_TIME]);
+    }, [notificationId, clearPersistedState, clearSessionsCount, WORK_TIME]);
 
     const skipSession = useCallback(() => {
         const currentStateLabel = timerState === "work"
@@ -422,6 +461,7 @@ export default function PomodoroTimer({
                         if (timerState === "work") {
                             const newSessionsCompleted = sessionsCompleted + 1;
                             setSessionsCompleted(newSessionsCompleted);
+                            await persistSessionsCount(newSessionsCompleted);
 
                             const isLongBreak = newSessionsCompleted % SESSIONS_BEFORE_LONG_BREAK === 0;
                             const nextState = isLongBreak ? "longBreak" : "shortBreak";
@@ -435,7 +475,7 @@ export default function PomodoroTimer({
                 },
             ]
         );
-    }, [timerState, sessionsCompleted, notificationId, clearPersistedState, getTimerDuration, WORK_TIME, SESSIONS_BEFORE_LONG_BREAK]);
+    }, [timerState, sessionsCompleted, notificationId, clearPersistedState, persistSessionsCount, getTimerDuration, WORK_TIME, SESSIONS_BEFORE_LONG_BREAK]);
 
     const handleCompleteTaskPress = useCallback(() => {
         Alert.alert(
@@ -450,13 +490,14 @@ export default function PomodoroTimer({
                             await cancelNotification(notificationId);
                         }
                         await clearPersistedState();
+                        await clearSessionsCount();
                         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         onCompleteTask(taskId);
                     },
                 },
             ]
         );
-    }, [notificationId, onCompleteTask, taskId, clearPersistedState]);
+    }, [notificationId, onCompleteTask, taskId, clearPersistedState, clearSessionsCount]);
 
     const handleMainButtonPressIn = useCallback(() => {
         'worklet';

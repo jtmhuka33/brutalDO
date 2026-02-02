@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { View, Text, TextInput, useColorScheme } from "react-native";
 import * as Haptics from "expo-haptics";
 import { twMerge } from "tailwind-merge";
@@ -30,6 +30,10 @@ export default function CompactNumberInput({
     const [inputValue, setInputValue] = useState(value.toString());
     const inputRef = useRef<TextInput>(null);
     const colorScheme = useColorScheme();
+
+    useEffect(() => {
+        setInputValue(value.toString());
+    }, [value]);
 
     const handleChangeText = useCallback((text: string) => {
         // Only allow numeric characters

@@ -260,6 +260,12 @@ export default function ZenMode() {
     const handleCompleteTask = async (taskId: string) => {
         // Clear the active Pomodoro timer first (this cancels the notification)
         await clearActiveTimer();
+        // Clear persisted session count for this task
+        try {
+            await AsyncStorage.removeItem(`@pomodoro_sessions_${taskId}`);
+        } catch (e) {
+            console.error("Failed to clear sessions count:", e);
+        }
 
         try {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
