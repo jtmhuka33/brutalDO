@@ -42,17 +42,48 @@ const COLORS = {
 function NavigationContent() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
-    const { activeTimer, isCheckingTimer } = usePomodoro();
+    const { activeTimer, isCheckingTimer, initialNotification, clearInitialNotification } = usePomodoro();
     const hasCheckedInitial = useRef(false);
 
     useEffect(() => {
         if (!isCheckingTimer && !hasCheckedInitial.current) {
             hasCheckedInitial.current = true;
-            if(activeTimer){
-                router.replace('/(tabs)/zen')
+
+            // Priority 1: Handle notification that launched the app
+            if (initialNotification) {
+                router.replace({
+                    pathname: '/(tabs)/zen',
+                    params: {
+                        taskId: initialNotification.taskId,
+                        initialTimerState: initialNotification.initialTimerState,
+                        initialSessionsCompleted: String(initialNotification.initialSessionsCompleted),
+                    },
+                });
+                clearInitialNotification();
+                return;
+            }
+
+            // Priority 2: Resume active timer
+            if (activeTimer) {
+                router.replace('/(tabs)/zen');
             }
         }
-    }, [isCheckingTimer]);
+    }, [isCheckingTimer, initialNotification]);
+
+    // Also handle notifications that come in while app is running
+    useEffect(() => {
+        if (hasCheckedInitial.current && initialNotification) {
+            router.push({
+                pathname: '/(tabs)/zen',
+                params: {
+                    taskId: initialNotification.taskId,
+                    initialTimerState: initialNotification.initialTimerState,
+                    initialSessionsCompleted: String(initialNotification.initialSessionsCompleted),
+                },
+            });
+            clearInitialNotification();
+        }
+    }, [initialNotification]);
 
     if (isCheckingTimer) {
         return null;

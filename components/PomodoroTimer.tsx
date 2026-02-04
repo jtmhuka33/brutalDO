@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, AppStateStatus, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { cancelNotification, scheduleNotification } from "@/utils/notifications";
+import { cancelNotification, schedulePomodoroNotification, PomodoroTimerState } from "@/utils/notifications";
 import { usePomodoro, PersistedTimerState } from "@/context/PomodoroContext";
 import { useSettings } from "@/context/SettingsContext";
 import { twMerge } from "tailwind-merge";
@@ -25,6 +25,8 @@ interface PomodoroTimerProps {
     onToggleSubtask: (subtaskId: string) => void;
     onDeleteSubtask: (subtaskId: string) => void;
     onBack: () => void;
+    initialTimerState?: PomodoroTimerState;
+    initialSessionsCompleted?: number;
 }
 
 const TIMER_STORAGE_KEY = "@pomodoro_timer_state";
@@ -47,6 +49,8 @@ export default function PomodoroTimer({
                                           onToggleSubtask,
                                           onDeleteSubtask,
                                           onBack,
+                                          initialTimerState,
+                                          initialSessionsCompleted,
                                       }: PomodoroTimerProps) {
     const { settings } = useSettings();
     const pomodoroSettings = settings.pomodoro;
@@ -270,6 +274,19 @@ export default function PomodoroTimer({
 
     useEffect(() => {
         const initialize = async () => {
+            // If initial state is provided from notification click, use it directly
+            if (initialTimerState !== undefined) {
+                await clearPersistedState();
+                setTimerState(initialTimerState);
+                setTimeLeft(getTimerDuration(initialTimerState));
+                if (initialSessionsCompleted !== undefined) {
+                    setSessionsCompleted(initialSessionsCompleted);
+                    await persistSessionsCount(initialSessionsCompleted);
+                }
+                setIsInitialized(true);
+                return;
+            }
+
             // First check if there's an active timer
             if (activeTimer && activeTimer.taskId === taskId) {
                 try {
@@ -352,21 +369,35 @@ export default function PomodoroTimer({
         }
     }, [pomodoroSettings, isInitialized, isRunning, timerState, getTimerDuration]);
 
-    const scheduleTimerNotification = useCallback(async (duration: number, state: TimerState) => {
+    const scheduleTimerNotification = useCallback(async (duration: number, state: TimerState, currentSessions: number) => {
         if (notificationId) {
             await cancelNotification(notificationId);
         }
 
         const finishTime = new Date(Date.now() + duration * 1000);
+
+        // Calculate the next state and sessions after this timer completes
+        let nextState: PomodoroTimerState;
+        let nextSessions: number;
+
+        if (state === "work") {
+            nextSessions = currentSessions + 1;
+            const isLongBreak = nextSessions % SESSIONS_BEFORE_LONG_BREAK === 0;
+            nextState = isLongBreak ? "longBreak" : "shortBreak";
+        } else {
+            nextState = "work";
+            nextSessions = currentSessions;
+        }
+
         const message =
             state === "work"
                 ? `Time for a break!`
                 : "Break's over! Ready for the next session?";
 
-        const id = await scheduleNotification(message, finishTime);
+        const id = await schedulePomodoroNotification(message, finishTime, taskId, nextState, nextSessions);
         setNotificationId(id);
         return id;
-    }, [notificationId]);
+    }, [notificationId, taskId, SESSIONS_BEFORE_LONG_BREAK]);
 
     const startTimer = useCallback(async () => {
         const newEndTime = Date.now() + timeLeft * 1000;
@@ -375,7 +406,7 @@ export default function PomodoroTimer({
         setIsRunning(true);
 
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        const notifId = await scheduleTimerNotification(timeLeft, timerState);
+        const notifId = await scheduleTimerNotification(timeLeft, timerState, sessionsCompleted);
         await persistTimerState(true, newEndTime, timerState, sessionsCompleted, notifId);
     }, [timeLeft, timerState, sessionsCompleted, scheduleTimerNotification, persistTimerState]);
 

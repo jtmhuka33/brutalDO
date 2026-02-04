@@ -63,7 +63,6 @@ export default function TodoApp() {
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const colorScheme = useColorScheme();
     const notificationListener = useRef<Notifications.EventSubscription | undefined>(undefined);
-    const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
     const { showDeleteToast, toast } = useToast();
@@ -112,17 +111,12 @@ export default function TodoApp() {
                 console.log("Notification received:", notification);
             });
 
-        responseListener.current =
-            Notifications.addNotificationResponseReceivedListener((response) => {
-                console.log("Notification tapped:", response);
-            });
+        // Note: Notification response handling (taps) is now done in PomodoroContext
+        // to ensure proper navigation even when app is cold-started from notification
 
         return () => {
             if (notificationListener.current) {
                 notificationListener.current.remove();
-            }
-            if (responseListener.current) {
-                responseListener.current.remove();
             }
         };
     }, []);

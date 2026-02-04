@@ -22,7 +22,7 @@ import { Todo, getPriorityOption, getReminders } from "@/types/todo";
 import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
 import { usePomodoro } from "@/context/PomodoroContext";
-import { cancelNotification } from "@/utils/notifications";
+import { cancelNotification, PomodoroTimerState } from "@/utils/notifications";
 import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -33,7 +33,11 @@ const STORAGE_KEY = "@neo_brutal_todos_v2";
 const CARD_COLORS_COUNT = 6;
 
 export default function ZenMode() {
-    const params = useLocalSearchParams<{ taskId?: string }>();
+    const params = useLocalSearchParams<{
+        taskId?: string;
+        initialTimerState?: PomodoroTimerState;
+        initialSessionsCompleted?: string;
+    }>();
     const [todos, setTodos] = useState<Todo[]>([]);
     const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
     const [timerStarted, setTimerStarted] = useState(false);
@@ -70,7 +74,18 @@ export default function ZenMode() {
 
     useEffect(() => {
         const initFromActiveTimerOrParams = async () => {
-            // First check if there's an active timer
+            // If coming from a notification with timer state, load task directly
+            // Skip activeTimer check since the timer has completed
+            if (params.taskId && params.initialTimerState) {
+                await clearActiveTimer(); // Clear any stale timer state
+                const loaded = await loadTaskById(params.taskId);
+                if (loaded) {
+                    setIsInitializing(false);
+                    return;
+                }
+            }
+
+            // Check if there's an active timer
             if (activeTimer) {
                 try {
                     const stored = await AsyncStorage.getItem(STORAGE_KEY);
@@ -97,7 +112,7 @@ export default function ZenMode() {
                 }
             }
 
-            // Then check if a taskId was passed as a parameter
+            // Then check if a taskId was passed as a parameter (without timer state)
             if (params.taskId) {
                 const loaded = await loadTaskById(params.taskId);
                 if (loaded) {
@@ -110,7 +125,7 @@ export default function ZenMode() {
         };
 
         initFromActiveTimerOrParams();
-    }, [activeTimer, params.taskId]);
+    }, [activeTimer, params.taskId, params.initialTimerState]);
 
     useFocusEffect(
         useCallback(() => {
@@ -476,6 +491,8 @@ export default function ZenMode() {
                     onToggleSubtask={handleToggleSubtask}
                     onDeleteSubtask={handleDeleteSubtask}
                     onBack={handleBack}
+                    initialTimerState={params.initialTimerState}
+                    initialSessionsCompleted={params.initialSessionsCompleted ? parseInt(params.initialSessionsCompleted, 10) : undefined}
                 />
             </View>
         );

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
+import * as Notifications from "expo-notifications";
 import { cancelNotification } from "@/utils/notifications";
 
 const TIMER_STORAGE_KEY = "@pomodoro_timer_state";
@@ -18,9 +19,17 @@ export interface PersistedTimerState {
     notificationId?: string;
 }
 
+export interface InitialNotificationData {
+    taskId: string;
+    initialTimerState: string;
+    initialSessionsCompleted: number;
+}
+
 interface PomodoroContextType {
     activeTimer: PersistedTimerState | null;
     isCheckingTimer: boolean;
+    initialNotification: InitialNotificationData | null;
+    clearInitialNotification: () => void;
     clearActiveTimer: () => Promise<void>;
     setActiveTimer: (state: PersistedTimerState | null) => void;
     checkAndResumeTimer: () => Promise<boolean>;
@@ -31,6 +40,12 @@ const PomodoroContext = createContext<PomodoroContextType | undefined>(undefined
 export function PomodoroProvider({ children }: { children: ReactNode }) {
     const [activeTimer, setActiveTimer] = useState<PersistedTimerState | null>(null);
     const [isCheckingTimer, setIsCheckingTimer] = useState(true);
+    const [initialNotification, setInitialNotification] = useState<InitialNotificationData | null>(null);
+    const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
+
+    const clearInitialNotification = useCallback(() => {
+        setInitialNotification(null);
+    }, []);
 
     const clearActiveTimer = useCallback(async () => {
         try {
@@ -108,7 +123,47 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     }, [clearActiveTimer]);
 
     useEffect(() => {
-        checkAndResumeTimer()
+        const initialize = async () => {
+            // First, check for initial notification that launched the app
+            const lastResponse = await Notifications.getLastNotificationResponseAsync();
+            if (lastResponse) {
+                const data = lastResponse.notification.request.content.data as Record<string, unknown>;
+                if (data?.type === "pomodoro" && data?.taskId) {
+                    // Clear any stale timer state since timer has completed
+                    await clearActiveTimer();
+                    setInitialNotification({
+                        taskId: data.taskId as string,
+                        initialTimerState: data.nextTimerState as string,
+                        initialSessionsCompleted: data.sessionsCompleted as number,
+                    });
+                    setIsCheckingTimer(false);
+                    return;
+                }
+            }
+
+            // No initial notification, check for active timer as before
+            await checkAndResumeTimer();
+        };
+
+        initialize();
+
+        // Set up listener for notifications while app is running
+        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+            const data = response.notification.request.content.data as Record<string, unknown>;
+            if (data?.type === "pomodoro" && data?.taskId) {
+                setInitialNotification({
+                    taskId: data.taskId as string,
+                    initialTimerState: data.nextTimerState as string,
+                    initialSessionsCompleted: data.sessionsCompleted as number,
+                });
+            }
+        });
+
+        return () => {
+            if (responseListener.current) {
+                responseListener.current.remove();
+            }
+        };
     }, []);
 
     return (
@@ -116,6 +171,8 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
             value={{
                 activeTimer,
                 isCheckingTimer,
+                initialNotification,
+                clearInitialNotification,
                 clearActiveTimer,
                 setActiveTimer,
                 checkAndResumeTimer,
