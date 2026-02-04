@@ -8,7 +8,7 @@ import * as SystemUI from "expo-system-ui";
 import * as NavigationBar from "expo-navigation-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Drawer } from "expo-router/drawer";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import {
     configureReanimatedLogger,
     ReanimatedLogLevel,
@@ -43,14 +43,19 @@ function NavigationContent() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
     const { activeTimer, isCheckingTimer, initialNotification, clearInitialNotification } = usePomodoro();
+    const pathname = usePathname();
     const hasCheckedInitial = useRef(false);
+    const handledNotificationRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (!isCheckingTimer && !hasCheckedInitial.current) {
+        if (isCheckingTimer) return;
+
+        // Handle initial notification on cold start
+        if (!hasCheckedInitial.current) {
             hasCheckedInitial.current = true;
 
-            // Priority 1: Handle notification that launched the app
-            if (initialNotification) {
+            if (initialNotification && handledNotificationRef.current !== initialNotification.taskId) {
+                handledNotificationRef.current = initialNotification.taskId;
                 router.replace({
                     pathname: '/(tabs)/zen',
                     params: {
@@ -63,27 +68,32 @@ function NavigationContent() {
                 return;
             }
 
-            // Priority 2: Resume active timer
+            // Resume active timer if no notification
             if (activeTimer) {
                 router.replace('/(tabs)/zen');
             }
+            return;
         }
-    }, [isCheckingTimer, initialNotification]);
 
-    // Also handle notifications that come in while app is running
-    useEffect(() => {
-        if (hasCheckedInitial.current && initialNotification) {
-            router.push({
-                pathname: '/(tabs)/zen',
-                params: {
-                    taskId: initialNotification.taskId,
-                    initialTimerState: initialNotification.initialTimerState,
-                    initialSessionsCompleted: String(initialNotification.initialSessionsCompleted),
-                },
-            });
+        // Handle notifications that come in while app is already running
+        if (initialNotification && handledNotificationRef.current !== initialNotification.taskId) {
+            handledNotificationRef.current = initialNotification.taskId;
+
+            // Don't navigate if already on zen mode - just clear the notification
+            const isOnZenMode = pathname === '/zen' || pathname === '/(tabs)/zen';
+            if (!isOnZenMode) {
+                router.push({
+                    pathname: '/(tabs)/zen',
+                    params: {
+                        taskId: initialNotification.taskId,
+                        initialTimerState: initialNotification.initialTimerState,
+                        initialSessionsCompleted: String(initialNotification.initialSessionsCompleted),
+                    },
+                });
+            }
             clearInitialNotification();
         }
-    }, [initialNotification]);
+    }, [isCheckingTimer, initialNotification, activeTimer, clearInitialNotification, pathname]);
 
     if (isCheckingTimer) {
         return null;

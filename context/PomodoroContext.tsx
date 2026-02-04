@@ -30,7 +30,7 @@ interface PomodoroContextType {
     isCheckingTimer: boolean;
     initialNotification: InitialNotificationData | null;
     clearInitialNotification: () => void;
-    clearActiveTimer: () => Promise<void>;
+    clearActiveTimer: (cancelScheduledNotification?: boolean) => Promise<void>;
     setActiveTimer: (state: PersistedTimerState | null) => void;
     checkAndResumeTimer: () => Promise<boolean>;
 }
@@ -47,13 +47,14 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         setInitialNotification(null);
     }, []);
 
-    const clearActiveTimer = useCallback(async () => {
+    const clearActiveTimer = useCallback(async (cancelScheduledNotification: boolean = true) => {
         try {
             const stored = await AsyncStorage.getItem(TIMER_STORAGE_KEY);
             if (stored) {
                 const state: PersistedTimerState = JSON.parse(stored);
-                // Cancel any scheduled notification
-                if (state.notificationId) {
+                // Only cancel notification if explicitly requested
+                // Don't cancel when timer naturally expires - let the notification show
+                if (cancelScheduledNotification && state.notificationId) {
                     await cancelNotification(state.notificationId);
                 }
             }
@@ -92,7 +93,8 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
 
             if (remaining <= 0) {
                 // Timer completed while app was closed
-                await clearActiveTimer();
+                // Don't cancel notification - let it show so user can tap it
+                await clearActiveTimer(false);
                 setIsCheckingTimer(false);
 
                 // Show completion message after a short delay to ensure UI is ready
@@ -141,7 +143,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
                 }
             }
 
-            // No initial notification, check for active timer as before
+            // No notification launched the app - check for active timer to resume
             await checkAndResumeTimer();
         };
 
