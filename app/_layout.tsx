@@ -54,8 +54,8 @@ function NavigationContent() {
         if (!hasCheckedInitial.current) {
             hasCheckedInitial.current = true;
 
-            if (initialNotification && handledNotificationRef.current !== initialNotification.taskId) {
-                handledNotificationRef.current = initialNotification.taskId;
+            if (initialNotification && handledNotificationRef.current !== initialNotification.notificationId) {
+                handledNotificationRef.current = initialNotification.notificationId;
                 router.replace({
                     pathname: '/(tabs)/zen',
                     params: {
@@ -76,8 +76,8 @@ function NavigationContent() {
         }
 
         // Handle notifications that come in while app is already running
-        if (initialNotification && handledNotificationRef.current !== initialNotification.taskId) {
-            handledNotificationRef.current = initialNotification.taskId;
+        if (initialNotification && handledNotificationRef.current !== initialNotification.notificationId) {
+            handledNotificationRef.current = initialNotification.notificationId;
 
             // Don't navigate if already on zen mode - just clear the notification
             const isOnZenMode = pathname === '/zen' || pathname === '/(tabs)/zen';

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { cancelNotification, cancelAllPomodoroNotifications } from "@/utils/notifications";
@@ -18,6 +19,7 @@ export interface PersistedTimerState {
 }
 
 export interface InitialNotificationData {
+    notificationId: string;
     taskId: string;
     initialTimerState: string;
     initialSessionsCompleted: number;
@@ -40,6 +42,9 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     const [isCheckingTimer, setIsCheckingTimer] = useState(true);
     const [initialNotification, setInitialNotification] = useState<InitialNotificationData | null>(null);
     const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined);
+    const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+    const lastHandledNotificationRef = useRef<string | null>(null);
+    const hasInitializedRef = useRef(false);
 
     const clearInitialNotification = useCallback(() => {
         setInitialNotification(null);
@@ -85,8 +90,41 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         return false;
     }, [clearTimerOnStartup]);
 
+    // Helper to handle notification response
+    const handleNotificationResponse = useCallback((response: Notifications.NotificationResponse) => {
+        const notificationId = response.notification.request.identifier;
+
+        // Avoid handling the same notification twice
+        if (lastHandledNotificationRef.current === notificationId) {
+            return;
+        }
+
+        const data = response.notification.request.content.data as Record<string, unknown>;
+        if (data?.type === "pomodoro" && data?.taskId) {
+            lastHandledNotificationRef.current = notificationId;
+            setInitialNotification({
+                notificationId,
+                taskId: data.taskId as string,
+                initialTimerState: data.nextTimerState as string,
+                initialSessionsCompleted: data.sessionsCompleted as number,
+            });
+        }
+    }, []);
+
     useEffect(() => {
         const initialize = async () => {
+            // Prevent double initialization (React Strict Mode, etc.)
+            if (hasInitializedRef.current) {
+                return;
+            }
+            hasInitializedRef.current = true;
+
+            // First, check for notification that launched the app (cold start)
+            const lastResponse = await Notifications.getLastNotificationResponseAsync();
+            if (lastResponse) {
+                handleNotificationResponse(lastResponse);
+            }
+
             // Clear any persisted timer state and notifications on app startup
             // Timer should not survive app kill
             await clearTimerOnStartup();
@@ -96,22 +134,34 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
 
         // Set up listener for notifications while app is running
         responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-            const data = response.notification.request.content.data as Record<string, unknown>;
-            if (data?.type === "pomodoro" && data?.taskId) {
-                setInitialNotification({
-                    taskId: data.taskId as string,
-                    initialTimerState: data.nextTimerState as string,
-                    initialSessionsCompleted: data.sessionsCompleted as number,
-                });
-            }
+            handleNotificationResponse(response);
         });
+
+        // Also check for notification responses when app comes back from background
+        // This handles cases where the listener might miss the response
+        const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+            if (
+                appStateRef.current.match(/inactive|background/) &&
+                nextAppState === "active"
+            ) {
+                // App came to foreground - check for any pending notification response
+                const lastResponse = await Notifications.getLastNotificationResponseAsync();
+                if (lastResponse) {
+                    handleNotificationResponse(lastResponse);
+                }
+            }
+            appStateRef.current = nextAppState;
+        };
+
+        const appStateSubscription = AppState.addEventListener("change", handleAppStateChange);
 
         return () => {
             if (responseListener.current) {
                 responseListener.current.remove();
             }
+            appStateSubscription.remove();
         };
-    }, []);
+    }, [handleNotificationResponse]);
 
     return (
         <PomodoroContext.Provider
