@@ -115,3 +115,19 @@ export async function schedulePomodoroNotification(
 export async function cancelNotification(notificationId: string) {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
 }
+
+/**
+ * Cancel all scheduled pomodoro notifications
+ */
+export async function cancelAllPomodoroNotifications() {
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    const pomodoroNotifications = scheduledNotifications.filter(
+        (n) => (n.content.data as Record<string, unknown>)?.type === "pomodoro"
+    );
+
+    await Promise.all(
+        pomodoroNotifications.map((n) =>
+            Notifications.cancelScheduledNotificationAsync(n.identifier)
+        )
+    );
+}

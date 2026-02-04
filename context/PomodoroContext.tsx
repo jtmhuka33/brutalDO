@@ -1,11 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Alert } from "react-native";
 import * as Notifications from "expo-notifications";
-import { cancelNotification } from "@/utils/notifications";
+import { cancelNotification, cancelAllPomodoroNotifications } from "@/utils/notifications";
 
 const TIMER_STORAGE_KEY = "@pomodoro_timer_state";
-const TODO_STORAGE_KEY = "@neo_brutal_todos_v2";
 
 export type TimerState = "work" | "shortBreak" | "longBreak";
 
@@ -65,86 +63,33 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    const checkAndResumeTimer = useCallback(async (): Promise<boolean> => {
+    const clearTimerOnStartup = useCallback(async (): Promise<void> => {
         try {
-            const stored = await AsyncStorage.getItem(TIMER_STORAGE_KEY);
-            if (!stored) {
-                setIsCheckingTimer(false);
-                return false;
-            }
+            // Clear any persisted timer state - timer should not survive app kill
+            await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
+            setActiveTimer(null);
 
-            const state: PersistedTimerState = JSON.parse(stored);
+            // Cancel all pomodoro notifications that may have been scheduled
+            await cancelAllPomodoroNotifications();
 
-            // Check if the task still exists
-            const todosStored = await AsyncStorage.getItem(TODO_STORAGE_KEY);
-            if (todosStored) {
-                const todos = JSON.parse(todosStored);
-                const taskExists = todos.some((t: any) => t.id === state.taskId && !t.archivedAt);
-
-                if (!taskExists) {
-                    // Task was deleted or archived, clear the timer
-                    await clearActiveTimer();
-                    setIsCheckingTimer(false);
-                    return false;
-                }
-            }
-
-            const remaining = Math.ceil((state.endTime - Date.now()) / 1000);
-
-            if (remaining <= 0) {
-                // Timer completed while app was closed
-                // Don't cancel notification - let it show so user can tap it
-                await clearActiveTimer(false);
-                setIsCheckingTimer(false);
-
-                // Show completion message after a short delay to ensure UI is ready
-                setTimeout(() => {
-                    const message = state.timerState === "work"
-                        ? "Your focus session completed! Time for a break."
-                        : "Your break is over! Ready for the next session?";
-
-                    Alert.alert(
-                        "Timer Completed! ⏰",
-                        message,
-                        [{ text: "Got it!" }]
-                    );
-                }, 500);
-
-                return false;
-            }
-
-            // Timer is still active, set the state
-            setActiveTimer(state);
             setIsCheckingTimer(false);
-            return true;
         } catch (e) {
-            console.error("Failed to check timer state:", e);
+            console.error("Failed to clear timer state on startup:", e);
             setIsCheckingTimer(false);
-            return false;
         }
-    }, [clearActiveTimer]);
+    }, []);
+
+    // Keep checkAndResumeTimer for API compatibility but it now just clears state
+    const checkAndResumeTimer = useCallback(async (): Promise<boolean> => {
+        await clearTimerOnStartup();
+        return false;
+    }, [clearTimerOnStartup]);
 
     useEffect(() => {
         const initialize = async () => {
-            // First, check for initial notification that launched the app
-            const lastResponse = await Notifications.getLastNotificationResponseAsync();
-            if (lastResponse) {
-                const data = lastResponse.notification.request.content.data as Record<string, unknown>;
-                if (data?.type === "pomodoro" && data?.taskId) {
-                    // Clear any stale timer state since timer has completed
-                    await clearActiveTimer();
-                    setInitialNotification({
-                        taskId: data.taskId as string,
-                        initialTimerState: data.nextTimerState as string,
-                        initialSessionsCompleted: data.sessionsCompleted as number,
-                    });
-                    setIsCheckingTimer(false);
-                    return;
-                }
-            }
-
-            // No notification launched the app - check for active timer to resume
-            await checkAndResumeTimer();
+            // Clear any persisted timer state and notifications on app startup
+            // Timer should not survive app kill
+            await clearTimerOnStartup();
         };
 
         initialize();
