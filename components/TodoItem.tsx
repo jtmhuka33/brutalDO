@@ -302,17 +302,17 @@ export default function TodoItem({
                                                     ? "border-black bg-neo-orange"
                                                     : isDueDateTomorrow(item.dueDate)
                                                         ? "border-black bg-neo-accent"
-                                                        : "border-black dark:border-white bg-white dark:bg-neo-dark-surface"
+                                                        : "border-black dark:border-white bg-white "
                                         )}
                                     >
                                         <Ionicons
                                             name="calendar-sharp"
                                             size={12}
-                                            color={colorScheme === 'dark' ? 'white' : 'black'}
+                                            color={colorScheme === 'dark' ? 'bklack' : 'black'}
                                         />
                                         <Text
                                             className={
-                                                `text-xs font-black uppercase tracking-tight ${colorScheme === 'dark' ? 'text-white' : 'text-black'}`
+                                                `text-xs font-black uppercase tracking-tight`
                                             }
                                         >
                                             {formatDueDateBadge(item.dueDate)}

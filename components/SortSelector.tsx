@@ -29,7 +29,7 @@ const SORT_OPTIONS: SortOption[] = [
 ];
 
 const SORT_DESCRIPTIONS: Record<SortType, string> = {
-    DEFAULT: "Overdue → Today → Priority",
+    DEFAULT: "Overdue → Today → High",
     PRIORITY_DESC: "High priority first",
     PRIORITY_ASC: "Low priority first",
     DUE_ASC: "Earliest due date first",

@@ -418,24 +418,37 @@ export default function TodoApp() {
         );
     }, []);
 
-    const getDatePriority = (todo: Todo): number => {
-        if (!todo.dueDate) return 4;
-        const dueDate = new Date(todo.dueDate);
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const dueDateStart = new Date(
-            dueDate.getFullYear(),
-            dueDate.getMonth(),
-            dueDate.getDate()
-        );
-        const diffDays = Math.floor(
-            (dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-        );
+    const getSmartSortWeight = (todo: Todo): number => {
+        // Date weight: Overdue=0, Today=1, Tomorrow=3, Future=5, No date=7
+        let dateWeight = 7;
+        if (todo.dueDate) {
+            const dueDate = new Date(todo.dueDate);
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const dueDateStart = new Date(
+                dueDate.getFullYear(),
+                dueDate.getMonth(),
+                dueDate.getDate()
+            );
+            const diffDays = Math.floor(
+                (dueDateStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+            );
+            if (diffDays < 0) dateWeight = 0;
+            else if (diffDays === 0) dateWeight = 1;
+            else if (diffDays === 1) dateWeight = 3;
+            else dateWeight = 5;
+        }
 
-        if (diffDays < 0) return 0;
-        if (diffDays === 0) return 1;
-        if (diffDays === 1) return 2;
-        return 3;
+        // Priority weight: High=2, Medium=4, Low=6, None=7
+        let priorityWeight = 7;
+        switch (todo.priority) {
+            case "high": priorityWeight = 2; break;
+            case "medium": priorityWeight = 4; break;
+            case "low": priorityWeight = 6; break;
+        }
+
+        // Task lands in whichever bucket is more urgent
+        return Math.min(dateWeight, priorityWeight);
     };
 
     const { activeTodos, archivedTodos } = useMemo(() => {
@@ -495,23 +508,24 @@ export default function TodoApp() {
                     return parseInt(b.id) - parseInt(a.id);
                 case "DEFAULT":
                 default:
-                    // Smart sort: Overdue → Today → Priority → Tomorrow → Future → No date
-                    const datePriorityA = getDatePriority(a);
-                    const datePriorityB = getDatePriority(b);
+                    // Smart sort: Overdue → Today → High → Tomorrow → Medium → Future → Low → None
+                    const weightA = getSmartSortWeight(a);
+                    const weightB = getSmartSortWeight(b);
+                    if (weightA !== weightB) return weightA - weightB;
 
-                    // First, sort by date urgency
-                    if (datePriorityA !== datePriorityB) return datePriorityA - datePriorityB;
-
-                    // Within same date priority, sort by task priority
-                    const taskPriorityDiff = getPriorityWeight(a.priority) - getPriorityWeight(b.priority);
-                    if (taskPriorityDiff !== 0) return taskPriorityDiff;
-
-                    // Finally, sort by due date time or creation
+                    // Within same bucket, sort by due date (earlier first)
                     if (a.dueDate && b.dueDate) {
-                        return (
-                            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-                        );
+                        const dateDiff = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                        if (dateDiff !== 0) return dateDiff;
                     }
+                    if (a.dueDate && !b.dueDate) return -1;
+                    if (!a.dueDate && b.dueDate) return 1;
+
+                    // Then by priority (higher first)
+                    const priDiff = getPriorityWeight(a.priority) - getPriorityWeight(b.priority);
+                    if (priDiff !== 0) return priDiff;
+
+                    // Finally by creation (newest first)
                     return parseInt(b.id) - parseInt(a.id);
             }
         });
