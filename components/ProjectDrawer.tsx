@@ -6,6 +6,7 @@ import {
     TextInput,
     ScrollView,
     Alert,
+    Modal,
     useColorScheme,
     Keyboard,
 } from "react-native";
@@ -41,13 +42,16 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
     const { navigation } = props;
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
-    const { lists, selectedListId, setSelectedListId, addList, deleteList } = useTodoList();
+    const { lists, selectedListId, setSelectedListId, addList, updateList, deleteList } = useTodoList();
     const scrollViewRef = useRef<ScrollView>(null);
     const inputRef = useRef<TextInput>(null);
 
     const [isAddingNew, setIsAddingNew] = useState(false);
     const [newListName, setNewListName] = useState("");
     const [showSettings, setShowSettings] = useState(false);
+    const [editingList, setEditingList] = useState<{ id: string; name: string } | null>(null);
+    const [editListName, setEditListName] = useState("");
+    const editInputRef = useRef<TextInput>(null);
 
     const handleSelectList = useCallback(async (listId: string) => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -78,25 +82,60 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
         setNewListName("");
     }, []);
 
-    const handleDeleteList = useCallback((listId: string, listName: string) => {
+    const handleLongPressList = useCallback(async (listId: string, listName: string) => {
         if (listId === DEFAULT_LIST_ID) return;
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         Alert.alert(
-            "Delete List?",
-            `Are you sure you want to delete "${listName}"? Tasks will be moved to Inbox.`,
+            listName,
+            "What would you like to do?",
             [
                 { text: "Cancel", style: "cancel" },
                 {
+                    text: "Rename",
+                    onPress: () => {
+                        setEditListName(listName);
+                        setEditingList({ id: listId, name: listName });
+                        setTimeout(() => editInputRef.current?.focus(), 100);
+                    },
+                },
+                {
                     text: "Delete",
                     style: "destructive",
-                    onPress: async () => {
-                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                        await deleteList(listId);
+                    onPress: () => {
+                        Alert.alert(
+                            "Delete Project?",
+                            `Are you sure you want to delete "${listName}"? All tasks in this project will be moved to Inbox.`,
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                    text: "Delete",
+                                    style: "destructive",
+                                    onPress: async () => {
+                                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                                        await deleteList(listId);
+                                    },
+                                },
+                            ]
+                        );
                     },
                 },
             ]
         );
     }, [deleteList]);
+
+    const handleRenameList = useCallback(async () => {
+        if (!editingList || !editListName.trim()) return;
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await updateList(editingList.id, editListName.trim());
+        setEditingList(null);
+        setEditListName("");
+    }, [editingList, editListName, updateList]);
+
+    const handleCancelRename = useCallback(() => {
+        setEditingList(null);
+        setEditListName("");
+    }, []);
 
     const handleInputFocus = useCallback(() => {
         setTimeout(() => {
@@ -167,7 +206,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                         >
                             <Pressable
                                 onPress={() => handleSelectList(list.id)}
-                                onLongPress={() => !isDefault && handleDeleteList(list.id, list.name)}
+                                onLongPress={() => !isDefault && handleLongPressList(list.id, list.name)}
                                 delayLongPress={500}
                                 className={cn(
                                     "mb-4 flex-row items-center justify-between border-5 border-black p-4 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
@@ -278,9 +317,61 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
                 style={{ paddingBottom: Math.max(insets.bottom, 16) }}
             >
                 <Text className="text-center text-xs font-black uppercase tracking-widest text-black dark:text-white">
-                    Long press to delete
+                    Long press to edit or delete
                 </Text>
             </View>
+
+            {/* Rename Modal */}
+            <Modal
+                visible={editingList !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={handleCancelRename}
+            >
+                <Pressable
+                    onPress={handleCancelRename}
+                    className="flex-1 items-center justify-center bg-black/50"
+                >
+                    <Pressable
+                        onPress={() => {}}
+                        className="mx-8 w-[85%] border-5 border-black bg-white p-6 shadow-brutal dark:border-neo-primary dark:bg-neo-dark-surface dark:shadow-brutal-dark"
+                    >
+                        <Text className="mb-4 text-xl font-black uppercase tracking-tight text-black dark:text-white">
+                            Rename Project
+                        </Text>
+                        <TextInput
+                            ref={editInputRef}
+                            value={editListName}
+                            onChangeText={setEditListName}
+                            placeholder="PROJECT NAME..."
+                            placeholderTextColor={colorScheme === "dark" ? "#888" : "#999"}
+                            className="mb-4 border-4 border-black bg-neo-bg p-3 text-base font-black uppercase text-black dark:border-neo-primary dark:bg-neo-dark dark:text-white"
+                            autoFocus
+                            returnKeyType="done"
+                            onSubmitEditing={handleRenameList}
+                            selectTextOnFocus
+                        />
+                        <View className="flex-row gap-3">
+                            <Pressable
+                                onPress={handleRenameList}
+                                className="flex-1 items-center justify-center border-4 border-black bg-neo-green p-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark-sm"
+                            >
+                                <Text className="text-sm font-black uppercase text-black">
+                                    Save
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={handleCancelRename}
+                                className="items-center justify-center border-4 border-black bg-gray-300 px-4 py-3 shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:bg-neo-dark-elevated dark:shadow-brutal-dark-sm"
+                            >
+                                <Text className="text-sm font-black uppercase text-black dark:text-white">
+                                    Cancel
+                                </Text>
+                            </Pressable>
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
 
             {/* Settings Panel */}
             <SettingsPanel

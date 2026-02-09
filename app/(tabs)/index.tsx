@@ -68,7 +68,7 @@ export default function TodoApp() {
     const { showDeleteToast, toast } = useToast();
     const { activeTimer, clearActiveTimer } = usePomodoro();
 
-    const { selectedListId, selectedList } = useTodoList();
+    const { selectedListId, selectedList, lists } = useTodoList();
     const {
         isBulkMode,
         selectedIds,
@@ -102,6 +102,13 @@ export default function TodoApp() {
             exitBulkMode();
         }
     }, [selectedListId]);
+
+    // Reload todos when lists change (e.g. after list deletion moves tasks to Inbox)
+    useEffect(() => {
+        if (!isInitialLoad) {
+            loadTodos();
+        }
+    }, [lists]);
 
     useEffect(() => {
         registerForPushNotificationsAsync();

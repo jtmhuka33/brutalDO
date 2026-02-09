@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TodoList, DEFAULT_LIST, DEFAULT_LIST_ID } from "@/types/todoList";
 
 const LISTS_STORAGE_KEY = "@neo_brutal_lists_v1";
+const TODOS_STORAGE_KEY = "@neo_brutal_todos_v2";
 
 interface TodoListContextType {
     lists: TodoList[];
@@ -77,6 +78,21 @@ export function TodoListProvider({ children }: { children: ReactNode }) {
 
     const deleteList = useCallback(async (id: string) => {
         if (id === DEFAULT_LIST_ID) return; // Can't delete default list
+
+        // Move tasks from deleted list to Inbox
+        try {
+            const stored = await AsyncStorage.getItem(TODOS_STORAGE_KEY);
+            if (stored) {
+                const todos = JSON.parse(stored);
+                const updated = todos.map((t: { listId?: string }) =>
+                    t.listId === id ? { ...t, listId: DEFAULT_LIST_ID } : t
+                );
+                await AsyncStorage.setItem(TODOS_STORAGE_KEY, JSON.stringify(updated));
+            }
+        } catch (e) {
+            console.error("Failed to move tasks to inbox", e);
+        }
+
         const newLists = lists.filter(l => l.id !== id);
         setLists(newLists);
         await saveLists(newLists);
