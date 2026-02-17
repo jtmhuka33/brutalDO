@@ -377,6 +377,7 @@ export default function ProjectDrawer(props: DrawerContentComponentProps) {
             <SettingsPanel
                 visible={showSettings}
                 onClose={handleCloseSettings}
+                onDismissAll={() => navigation.closeDrawer()}
             />
         </View>
     );

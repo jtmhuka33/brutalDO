@@ -7,8 +7,8 @@ import {
     ScrollView,
     useColorScheme,
     ActivityIndicator,
-    Linking,
 } from "react-native";
+import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
     FadeIn,
@@ -35,6 +35,7 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 interface PaywallSheetProps {
     visible: boolean;
     onClose: () => void;
+    onDismissAll?: () => void;
     featureContext?: string;
 }
 
@@ -185,6 +186,7 @@ function PricingCard({
 export default function PaywallSheet({
     visible,
     onClose,
+    onDismissAll,
     featureContext,
 }: PaywallSheetProps) {
     const insets = useSafeAreaInsets();
@@ -226,13 +228,29 @@ export default function PaywallSheet({
         }
     }, [restore, onClose]);
 
+    const handleNavigateToLegal = useCallback(
+        (type: "terms" | "privacy") => {
+            // Close PaywallSheet first
+            onClose();
+            // After PaywallSheet modal fully dismisses, close parent overlays
+            setTimeout(() => {
+                onDismissAll?.();
+                // After parent overlays dismiss, navigate
+                setTimeout(() => {
+                    router.push({ pathname: "/legal", params: { type } });
+                }, 200);
+            }, 150);
+        },
+        [onClose, onDismissAll]
+    );
+
     const handleTerms = useCallback(() => {
-        Linking.openURL("https://example.com/terms");
-    }, []);
+        handleNavigateToLegal("terms");
+    }, [handleNavigateToLegal]);
 
     const handlePrivacy = useCallback(() => {
-        Linking.openURL("https://example.com/privacy");
-    }, []);
+        handleNavigateToLegal("privacy");
+    }, [handleNavigateToLegal]);
 
     // Sort products: monthly, yearly, lifetime
     const sortedProducts = [...products].sort((a, b) => {

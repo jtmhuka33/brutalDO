@@ -32,9 +32,10 @@ import PaywallSheet from "./PaywallSheet";
 interface SettingsPanelProps {
     visible: boolean;
     onClose: () => void;
+    onDismissAll?: () => void;
 }
 
-export default function SettingsPanel({ visible, onClose }: SettingsPanelProps) {
+export default function SettingsPanel({ visible, onClose, onDismissAll }: SettingsPanelProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const { settings, updatePomodoroSettings, resetPomodoroSettings } = useSettings();
@@ -448,6 +449,10 @@ export default function SettingsPanel({ visible, onClose }: SettingsPanelProps) 
             <PaywallSheet
                 visible={showPaywall}
                 onClose={() => setShowPaywall(false)}
+                onDismissAll={() => {
+                    onClose();
+                    onDismissAll?.();
+                }}
                 featureContext="custom Pomodoro timers"
             />
         </Modal>
