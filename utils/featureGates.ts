@@ -24,29 +24,11 @@ export function canAddMoreReminders(currentCount: number, isPremium: boolean): b
 }
 
 /**
- * Check if user can use biweekly recurrence pattern
- * Free tier: No biweekly
- * Premium: Biweekly available
+ * Check if user can set custom recurrence intervals (> 1)
+ * Free tier: interval is always 1
+ * Premium: Can set interval to any value
  */
-export function canUseBiweeklyRecurrence(isPremium: boolean): boolean {
-    return isPremium;
-}
-
-/**
- * Check if user can select custom recurrence days (specific days of week)
- * Free tier: No custom day selection
- * Premium: Can pick specific days (M-Su)
- */
-export function canSelectCustomRecurrenceDays(isPremium: boolean): boolean {
-    return isPremium;
-}
-
-/**
- * Check if user can set recurrence end dates
- * Free tier: No end dates
- * Premium: Can set when recurrence should stop
- */
-export function canSetRecurrenceEndDate(isPremium: boolean): boolean {
+export function canSetRecurrenceInterval(isPremium: boolean): boolean {
     return isPremium;
 }
 
@@ -61,19 +43,12 @@ export function canCustomizePomodoro(isPremium: boolean): boolean {
 
 /**
  * Check if a recurrence type is available for the user's subscription tier
+ * All 4 types are available to all users
  */
 export function isRecurrenceTypeAvailable(
     type: RecurrenceType,
-    isPremium: boolean
+    _isPremium: boolean
 ): boolean {
-    if (isPremium) return true;
-
-    // "custom" requires premium because it involves custom day selection
-    if (type === "custom") return false;
-
-    // "biweekly" requires premium
-    if (type === "biweekly") return false;
-
     return FREE_TIER_LIMITS.allowedRecurrenceTypes.includes(
         type as typeof FREE_TIER_LIMITS.allowedRecurrenceTypes[number]
     );
@@ -84,9 +59,7 @@ export function isRecurrenceTypeAvailable(
  */
 export function getPremiumRecurrenceFeatures(): string[] {
     return [
-        "Biweekly repeating tasks",
-        "Custom day selection (pick specific days)",
-        "Recurrence end dates",
+        "Custom repeat intervals (every 2 days, every 3 weeks, etc.)",
     ];
 }
 
@@ -97,6 +70,7 @@ export function taskHasPremiumFeatures(task: {
     reminders?: { id: string }[];
     recurrence?: {
         type: RecurrenceType;
+        interval?: number;
         daysOfWeek?: number[];
         endDate?: string;
     };
@@ -106,12 +80,9 @@ export function taskHasPremiumFeatures(task: {
         return true;
     }
 
-    // Premium recurrence features
-    if (task.recurrence) {
-        if (task.recurrence.type === "biweekly") return true;
-        if (task.recurrence.type === "custom") return true;
-        if (task.recurrence.daysOfWeek && task.recurrence.daysOfWeek.length > 0) return true;
-        if (task.recurrence.endDate) return true;
+    // Premium recurrence feature: interval > 1
+    if (task.recurrence && task.recurrence.interval && task.recurrence.interval > 1) {
+        return true;
     }
 
     return false;

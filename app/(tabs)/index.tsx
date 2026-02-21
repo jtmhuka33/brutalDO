@@ -40,7 +40,7 @@ import {
     cancelNotification,
     registerForPushNotificationsAsync,
 } from "@/utils/notifications";
-import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
+import { createNextRecurringTodo, isRecurrenceActive, migrateRecurrencePattern } from "@/utils/recurrence";
 import SortSelector from "@/components/SortSelector";
 import { usePomodoro } from "@/context/PomodoroContext";
 
@@ -131,7 +131,23 @@ export default function TodoApp() {
     const loadTodos = useCallback(async () => {
         try {
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
-            if (stored) setTodos(JSON.parse(stored));
+            if (stored) {
+                const parsed: Todo[] = JSON.parse(stored);
+                // Migrate old recurrence patterns to new format
+                const migrated = parsed.map(todo => {
+                    if (todo.recurrence) {
+                        const migratedPattern = migrateRecurrencePattern(todo.recurrence);
+                        const isActive = migratedPattern && migratedPattern.type !== "once";
+                        return {
+                            ...todo,
+                            recurrence: migratedPattern,
+                            isRecurring: isActive || false,
+                        };
+                    }
+                    return todo;
+                });
+                setTodos(migrated);
+            }
         } catch {
             console.error("Failed to load todos");
         }
@@ -404,7 +420,7 @@ export default function TodoApp() {
         setTodos((prev) =>
             prev.map((t) =>
                 t.id === id
-                    ? { ...t, recurrence: pattern, isRecurring: pattern.type !== "none" }
+                    ? { ...t, recurrence: pattern, isRecurring: pattern.type !== "once" }
                     : t
             )
         );

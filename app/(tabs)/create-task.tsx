@@ -244,7 +244,7 @@ export default function CreateTaskScreen() {
                             // Use new reminders array
                             reminders: scheduledReminders,
                             recurrence,
-                            isRecurring: recurrence?.type !== "none" && !!recurrence,
+                            isRecurring: recurrence?.type !== "once" && !!recurrence,
                             subtasks,
                             priority,
                         }
@@ -260,7 +260,7 @@ export default function CreateTaskScreen() {
                     dueDate,
                     reminders: scheduledReminders,
                     recurrence,
-                    isRecurring: recurrence?.type !== "none" && !!recurrence,
+                    isRecurring: recurrence?.type !== "once" && !!recurrence,
                     subtasks,
                     priority,
                 };

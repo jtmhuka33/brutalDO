@@ -23,7 +23,7 @@ import { DEFAULT_LIST_ID } from "@/types/todoList";
 import { useTodoList } from "@/context/TodoListContext";
 import { usePomodoro } from "@/context/PomodoroContext";
 import { cancelNotification, PomodoroTimerState } from "@/utils/notifications";
-import { createNextRecurringTodo, isRecurrenceActive } from "@/utils/recurrence";
+import { createNextRecurringTodo, isRecurrenceActive, getRecurrenceShortLabel } from "@/utils/recurrence";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -417,28 +417,8 @@ export default function ZenMode() {
 
     const getRecurrenceLabel = (todo: Todo): string | null => {
         if (!isRecurrenceActive(todo.recurrence)) return null;
-
-        switch (todo.recurrence?.type) {
-            case "daily":
-                return "DAILY";
-            case "weekdays":
-                return "M-F";
-            case "weekly":
-                return "WEEKLY";
-            case "biweekly":
-                return "2 WEEKS";
-            case "monthly":
-                return "MONTHLY";
-            case "yearly":
-                return "YEARLY";
-            case "custom":
-                if (todo.recurrence.daysOfWeek && todo.recurrence.daysOfWeek.length > 0) {
-                    return "CUSTOM";
-                }
-                return "CUSTOM";
-            default:
-                return null;
-        }
+        if (!todo.recurrence) return null;
+        return getRecurrenceShortLabel(todo.recurrence);
     };
 
     const getDueDateLabel = (todo: Todo): { label: string; isUrgent: boolean } | null => {

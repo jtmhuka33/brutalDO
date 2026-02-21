@@ -42,7 +42,7 @@ export const PREMIUM_FEATURES = [
     {
         icon: "repeat-sharp" as const,
         title: "Advanced Recurrence",
-        description: "Biweekly, custom days, and end dates for repeating tasks",
+        description: "Set custom intervals for daily, weekly, and monthly repeating tasks",
     },
     {
         icon: "timer-sharp" as const,
@@ -53,7 +53,7 @@ export const PREMIUM_FEATURES = [
 
 export const FREE_TIER_LIMITS = {
     maxRemindersPerTask: 1,
-    allowedRecurrenceTypes: ["none", "daily", "weekdays", "weekly", "monthly", "yearly"] as const,
+    allowedRecurrenceTypes: ["once", "daily", "weekly", "monthly"] as const,
     pomodoroDefaults: {
         workDuration: 25,
         shortBreakDuration: 5,
