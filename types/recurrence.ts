@@ -1,17 +1,11 @@
-export type RecurrenceType =
-    | "none"
-    | "daily"
-    | "weekdays"
-    | "weekly"
-    | "biweekly"
-    | "monthly"
-    | "yearly"
-    | "custom";
+export type RecurrenceType = "once" | "daily" | "weekly" | "monthly";
 
 export interface RecurrencePattern {
     type: RecurrenceType;
-    daysOfWeek?: number[]; // 0=Sunday, 1=Monday, ..., 6=Saturday (for weekly, biweekly, custom)
-    endDate?: string; // Optional end date for the recurrence
+    interval?: number;      // Every N days/weeks/months (default 1)
+    daysOfWeek?: number[];  // 0=Sunday, 1=Monday, ..., 6=Saturday (for weekly)
+    startDate?: string;     // Optional start date for the recurrence
+    endDate?: string;       // Optional end date for the recurrence
 }
 
 export const RECURRENCE_OPTIONS: {
@@ -21,14 +15,10 @@ export const RECURRENCE_OPTIONS: {
     icon: string;
     showDayPicker?: boolean;
 }[] = [
-    { type: "none", label: "Does not repeat", shortLabel: "ONCE", icon: "close-circle-sharp" },
+    { type: "once", label: "Does not repeat", shortLabel: "ONCE", icon: "close-circle-sharp" },
     { type: "daily", label: "Every day", shortLabel: "DAILY", icon: "sunny-sharp" },
-    { type: "weekdays", label: "Weekdays (Mon-Fri)", shortLabel: "WEEKDAYS", icon: "briefcase-sharp" },
     { type: "weekly", label: "Every week", shortLabel: "WEEKLY", icon: "calendar-sharp", showDayPicker: true },
-    { type: "biweekly", label: "Every 2 weeks", shortLabel: "BI-WEEKLY", icon: "calendar-number-sharp", showDayPicker: true },
     { type: "monthly", label: "Every month", shortLabel: "MONTHLY", icon: "moon-sharp" },
-    { type: "yearly", label: "Every year", shortLabel: "YEARLY", icon: "planet-sharp" },
-    { type: "custom", label: "Custom days...", shortLabel: "CUSTOM", icon: "settings-sharp", showDayPicker: true },
 ];
 
 export const DAYS_OF_WEEK: {

@@ -184,6 +184,8 @@ export default function DatePickerPanel({
             {/* Recurrence Section */}
             <RecurrencePicker
                 recurrence={recurrence}
+                dueDate={dueDate}
+                onSetDueDate={onSetDueDate}
                 onSetRecurrence={onSetRecurrence}
                 onClearRecurrence={onClearRecurrence}
             />

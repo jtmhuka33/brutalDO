@@ -8,38 +8,25 @@ export function getNextOccurrenceDate(
     currentDate: Date,
     pattern: RecurrencePattern
 ): Date | null {
-    if (pattern.type === "none") return null;
+    if (pattern.type === "once") return null;
 
+    const interval = pattern.interval || 1;
     const next = new Date(currentDate);
 
     switch (pattern.type) {
         case "daily":
-            next.setDate(next.getDate() + 1);
-            break;
-
-        case "weekdays":
-            // Move to next weekday
-            do {
-                next.setDate(next.getDate() + 1);
-            } while (next.getDay() === 0 || next.getDay() === 6);
+            next.setDate(next.getDate() + interval);
             break;
 
         case "weekly":
-            return getNextDayOfWeekOccurrence(currentDate, pattern.daysOfWeek, 1);
-
-        case "biweekly":
-            return getNextDayOfWeekOccurrence(currentDate, pattern.daysOfWeek, 2);
-
-        case "custom":
-            // Custom now means specific days of the week (weekly pattern)
-            return getNextDayOfWeekOccurrence(currentDate, pattern.daysOfWeek, 1);
-
-        case "monthly":
-            next.setMonth(next.getMonth() + 1);
+            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
+                return getNextDayOfWeekOccurrence(currentDate, pattern.daysOfWeek, interval, pattern.endDate);
+            }
+            next.setDate(next.getDate() + (7 * interval));
             break;
 
-        case "yearly":
-            next.setFullYear(next.getFullYear() + 1);
+        case "monthly":
+            next.setMonth(next.getMonth() + interval);
             break;
     }
 
@@ -61,10 +48,11 @@ export function getNextOccurrenceDate(
 function getNextDayOfWeekOccurrence(
     currentDate: Date,
     daysOfWeek: number[] | undefined,
-    weekInterval: number
+    weekInterval: number,
+    endDateStr?: string
 ): Date | null {
     if (!daysOfWeek || daysOfWeek.length === 0) {
-        // Default to same day next week/biweekly
+        // Default to same day next week(s)
         const next = new Date(currentDate);
         next.setDate(next.getDate() + (7 * weekInterval));
         return next;
@@ -90,9 +78,18 @@ function getNextDayOfWeekOccurrence(
         // Wrap to the first day of the pattern in the next cycle
         const firstDay = sortedDays[0];
         const daysUntilNextCycle = (7 - currentDayOfWeek) + firstDay;
-        // Add additional weeks for biweekly (weekInterval - 1 extra weeks)
+        // Add additional weeks for interval > 1 (e.g., every 2 weeks)
         const totalDays = daysUntilNextCycle + (7 * (weekInterval - 1));
         next.setDate(next.getDate() + totalDays);
+    }
+
+    // Check end date
+    if (endDateStr) {
+        const endDate = new Date(endDateStr);
+        endDate.setHours(23, 59, 59, 999);
+        if (next > endDate) {
+            return null;
+        }
     }
 
     return next;
@@ -102,32 +99,24 @@ function getNextDayOfWeekOccurrence(
  * Format recurrence pattern for display
  */
 export function formatRecurrencePattern(pattern: RecurrencePattern): string {
+    const interval = pattern.interval || 1;
+
     switch (pattern.type) {
-        case "none":
+        case "once":
             return "Does not repeat";
         case "daily":
-            return "Every day";
-        case "weekdays":
-            return "Weekdays";
+            return interval === 1 ? "Every day" : `Every ${interval} days`;
         case "weekly":
             if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
-                return `Weekly on ${formatDaysOfWeek(pattern.daysOfWeek)}`;
+                const daysText = formatDaysOfWeek(pattern.daysOfWeek);
+                if (interval === 1) {
+                    return `Weekly on ${daysText}`;
+                }
+                return `Every ${interval} weeks on ${daysText}`;
             }
-            return "Every week";
-        case "biweekly":
-            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
-                return `Biweekly on ${formatDaysOfWeek(pattern.daysOfWeek)}`;
-            }
-            return "Every 2 weeks";
+            return interval === 1 ? "Every week" : `Every ${interval} weeks`;
         case "monthly":
-            return "Every month";
-        case "yearly":
-            return "Every year";
-        case "custom":
-            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
-                return formatDaysOfWeek(pattern.daysOfWeek);
-            }
-            return "Custom days";
+            return interval === 1 ? "Every month" : `Every ${interval} months`;
         default:
             return "Unknown";
     }
@@ -153,32 +142,21 @@ function formatDaysOfWeek(days: number[]): string {
  * Get short label for recurrence pattern
  */
 export function getRecurrenceShortLabel(pattern: RecurrencePattern): string {
+    const interval = pattern.interval || 1;
+
     switch (pattern.type) {
-        case "none":
+        case "once":
             return "ONCE";
         case "daily":
-            return "DAILY";
-        case "weekdays":
-            return "M-F";
+            return interval === 1 ? "DAILY" : `${interval}D`;
         case "weekly":
             if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0 && pattern.daysOfWeek.length < 7) {
-                return formatDaysShort(pattern.daysOfWeek);
+                const daysShort = formatDaysShort(pattern.daysOfWeek);
+                return interval === 1 ? daysShort : `${interval}W ${daysShort}`;
             }
-            return "WEEKLY";
-        case "biweekly":
-            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0 && pattern.daysOfWeek.length < 7) {
-                return `2W ${formatDaysShort(pattern.daysOfWeek)}`;
-            }
-            return "2 WEEKS";
+            return interval === 1 ? "WEEKLY" : `${interval}W`;
         case "monthly":
-            return "MONTHLY";
-        case "yearly":
-            return "YEARLY";
-        case "custom":
-            if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
-                return formatDaysShort(pattern.daysOfWeek);
-            }
-            return "CUSTOM";
+            return interval === 1 ? "MONTHLY" : `${interval}MO`;
         default:
             return "?";
     }
@@ -201,7 +179,7 @@ export function createNextRecurringTodo(
     completedTodo: Todo,
     colorVariant: number
 ): Todo | null {
-    if (!completedTodo.recurrence || completedTodo.recurrence.type === "none") {
+    if (!completedTodo.recurrence || completedTodo.recurrence.type === "once") {
         return null;
     }
 
@@ -245,8 +223,73 @@ export function createNextRecurringTodo(
 }
 
 /**
- * Check if a recurrence pattern is active (not "none")
+ * Check if a recurrence pattern is active (not "once")
  */
 export function isRecurrenceActive(pattern?: RecurrencePattern): boolean {
-    return !!pattern && pattern.type !== "none";
+    return !!pattern && pattern.type !== "once";
+}
+
+/**
+ * Migrate old recurrence patterns to the new format.
+ * Call this when loading todos from storage to handle legacy data.
+ */
+export function migrateRecurrencePattern(pattern: any): RecurrencePattern | undefined {
+    if (!pattern || !pattern.type) return undefined;
+
+    switch (pattern.type) {
+        case "none":
+            return { type: "once" };
+        case "once":
+            return { type: "once" };
+        case "weekdays":
+            return {
+                type: "weekly",
+                interval: 1,
+                daysOfWeek: [1, 2, 3, 4, 5],
+                startDate: pattern.startDate,
+                endDate: pattern.endDate,
+            };
+        case "biweekly":
+            return {
+                type: "weekly",
+                interval: 2,
+                daysOfWeek: pattern.daysOfWeek,
+                startDate: pattern.startDate,
+                endDate: pattern.endDate,
+            };
+        case "yearly":
+            return undefined; // Drop silently
+        case "custom":
+            return {
+                type: "weekly",
+                interval: 1,
+                daysOfWeek: pattern.daysOfWeek,
+                startDate: pattern.startDate,
+                endDate: pattern.endDate,
+            };
+        case "daily":
+            return {
+                type: "daily",
+                interval: pattern.interval || 1,
+                startDate: pattern.startDate,
+                endDate: pattern.endDate,
+            };
+        case "weekly":
+            return {
+                type: "weekly",
+                interval: pattern.interval || 1,
+                daysOfWeek: pattern.daysOfWeek,
+                startDate: pattern.startDate,
+                endDate: pattern.endDate,
+            };
+        case "monthly":
+            return {
+                type: "monthly",
+                interval: pattern.interval || 1,
+                startDate: pattern.startDate,
+                endDate: pattern.endDate,
+            };
+        default:
+            return pattern;
+    }
 }
