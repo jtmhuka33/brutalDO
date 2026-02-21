@@ -39,6 +39,8 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 
 interface RecurrencePickerProps {
     recurrence?: RecurrencePattern;
+    dueDate?: string;
+    onSetDueDate: (date: Date) => void;
     onSetRecurrence: (pattern: RecurrencePattern) => void;
     onClearRecurrence: () => void;
 }
@@ -58,6 +60,8 @@ const INTERVAL_UNIT_LABELS: Record<string, { singular: string; plural: string }>
 
 export default function RecurrencePicker({
                                              recurrence,
+                                             dueDate,
+                                             onSetDueDate,
                                              onSetRecurrence,
                                              onClearRecurrence,
                                          }: RecurrencePickerProps) {
@@ -91,22 +95,23 @@ export default function RecurrencePicker({
 
     const openModal = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        const dueDateAsDate = dueDate ? new Date(dueDate) : new Date();
         // Initialize state from existing recurrence
         if (recurrence && recurrence.type !== "once") {
             setSelectedType(recurrence.type);
             setInterval(recurrence.interval || 1);
             setSelectedDays(recurrence.daysOfWeek || []);
-            setStartDate(recurrence.startDate ? new Date(recurrence.startDate) : null);
+            setStartDate(recurrence.startDate ? new Date(recurrence.startDate) : dueDateAsDate);
             setEndDate(recurrence.endDate ? new Date(recurrence.endDate) : null);
         } else {
             setSelectedType("once");
             setInterval(1);
             setSelectedDays([]);
-            setStartDate(null);
+            setStartDate(dueDateAsDate);
             setEndDate(null);
         }
         setShowModal(true);
-    }, [recurrence]);
+    }, [recurrence, dueDate]);
 
     const closeModal = useCallback(() => {
         setShowModal(false);
@@ -183,8 +188,9 @@ export default function RecurrencePicker({
 
     const handleStartDateConfirm = useCallback((date: Date) => {
         setStartDate(date);
+        onSetDueDate(date);
         setShowStartDatePicker(false);
-    }, []);
+    }, [onSetDueDate]);
 
     const handleEndDateConfirm = useCallback((date: Date) => {
         setEndDate(date);
@@ -193,8 +199,10 @@ export default function RecurrencePicker({
 
     const clearStartDate = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setStartDate(null);
-    }, []);
+        const today = new Date();
+        setStartDate(today);
+        onSetDueDate(today);
+    }, [onSetDueDate]);
 
     const clearEndDate = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -510,45 +518,21 @@ export default function RecurrencePicker({
                                             {/* Start Date */}
                                             <View>
                                                 <Text className="mb-2 text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">
-                                                    Start Date (Optional)
+                                                    Start Date
                                                 </Text>
-                                                {startDate ? (
-                                                    <View className="flex-row items-center gap-2">
-                                                        <Pressable
-                                                            onPress={() => setShowStartDatePicker(true)}
-                                                            className="flex-1 flex-row items-center gap-2 border-4 border-black bg-neo-green p-3 dark:border-neo-primary"
-                                                        >
-                                                            <Ionicons name="calendar-sharp" size={18} color="black" />
-                                                            <Text className="font-black uppercase text-black text-sm">
-                                                                {startDate.toLocaleDateString("en-US", {
-                                                                    month: "short",
-                                                                    day: "numeric",
-                                                                    year: "numeric",
-                                                                })}
-                                                            </Text>
-                                                        </Pressable>
-                                                        <Pressable
-                                                            onPress={clearStartDate}
-                                                            className="h-12 w-12 items-center justify-center border-4 border-black bg-neo-primary dark:border-neo-primary"
-                                                        >
-                                                            <Ionicons name="close-sharp" size={20} color="white" />
-                                                        </Pressable>
-                                                    </View>
-                                                ) : (
-                                                    <Pressable
-                                                        onPress={() => setShowStartDatePicker(true)}
-                                                        className="flex-row items-center justify-center gap-2 border-4 border-dashed border-gray-400 bg-transparent p-3 dark:border-neo-primary"
-                                                    >
-                                                        <Ionicons
-                                                            name="calendar-outline"
-                                                            size={18}
-                                                            color={colorScheme === "dark" ? "#FF0055" : "#666"}
-                                                        />
-                                                        <Text className="font-black uppercase text-gray-500 dark:text-gray-400 text-sm">
-                                                            Set Start Date
-                                                        </Text>
-                                                    </Pressable>
-                                                )}
+                                                <Pressable
+                                                    onPress={() => setShowStartDatePicker(true)}
+                                                    className="flex-row items-center gap-2 border-4 border-black bg-neo-green p-3 dark:border-neo-primary"
+                                                >
+                                                    <Ionicons name="calendar-sharp" size={18} color="black" />
+                                                    <Text className="font-black uppercase text-black text-sm">
+                                                        {(startDate || new Date()).toLocaleDateString("en-US", {
+                                                            month: "short",
+                                                            day: "numeric",
+                                                            year: "numeric",
+                                                        })}
+                                                    </Text>
+                                                </Pressable>
                                             </View>
 
                                             {/* End Date */}
@@ -644,14 +628,13 @@ export default function RecurrencePicker({
                     minimumDate={startDate || new Date()}
                     isDarkModeEnabled={colorScheme === "dark"}
                 />
+                {/* Paywall Sheet */}
+                <PaywallSheet
+                    visible={showPaywall}
+                    onClose={() => setShowPaywall(false)}
+                    featureContext="custom recurrence intervals"
+                />
             </Modal>
-
-            {/* Paywall Sheet */}
-            <PaywallSheet
-                visible={showPaywall}
-                onClose={() => setShowPaywall(false)}
-                featureContext="custom recurrence intervals"
-            />
         </View>
     );
 }

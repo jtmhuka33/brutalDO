@@ -63,7 +63,14 @@ export default function CreateTaskScreen() {
     const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
 
     const [taskTitle, setTaskTitle] = useState("");
-    const [dueDate, setDueDate] = useState<string | undefined>();
+    const [dueDate, setDueDate] = useState<string | undefined>(() => {
+        if (!params.todoId) {
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+            return today.toISOString();
+        }
+        return undefined;
+    });
     const [reminders, setReminders] = useState<Reminder[]>([]);
     const [recurrence, setRecurrence] = useState<RecurrencePattern | undefined>();
     const [subtasks, setSubtasks] = useState<Subtask[]>([]);
