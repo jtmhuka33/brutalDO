@@ -13,7 +13,7 @@
         "dark": "./assets/ios/BrutalDoIcon-iOS-Dark-1024x1024@1x.png",
         "tinted": "./assets/ios/BrutalDoIcon-iOS-TintedLight-1024x1024@1x.png"
       },
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.jtmhuka33.brutraldo",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -50,7 +50,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/AppIocn.png",
+          "icon": "./assets/ios/BrutalDoIcon-iOS-Default-1024x1024@1x.png",
           "color": "#ffffff"
         }
       ],
