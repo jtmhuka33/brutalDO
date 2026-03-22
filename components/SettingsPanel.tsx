@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
     View,
     Text,
@@ -26,6 +26,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { POMODORO_LIMITS } from "@/types/settings";
 import { FREE_TIER_LIMITS } from "@/types/subscription";
 import { canCustomizePomodoro } from "@/utils/featureGates";
+import { devResetReviewPrompt, devGetReviewStatus, maybeRequestReview } from "@/utils/storeReview";
 import CompactNumberInput from "./CompactNumberInput";
 import PaywallSheet from "./PaywallSheet";
 
@@ -42,8 +43,16 @@ export default function SettingsPanel({ visible, onClose, onDismissAll }: Settin
     const { userId } = useUser();
     const { isPremium, devSetPremium } = useSubscription();
     const [showPaywall, setShowPaywall] = useState(false);
+    const [reviewRequested, setReviewRequested] = useState(false);
 
     const canCustomize = canCustomizePomodoro(isPremium);
+
+    // Sync review status badge whenever the panel opens
+    useEffect(() => {
+        if (__DEV__ && visible) {
+            devGetReviewStatus().then(setReviewRequested);
+        }
+    }, [visible]);
 
     const handleClose = useCallback(async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -438,6 +447,50 @@ export default function SettingsPanel({ visible, onClose, onDismissAll }: Settin
                                     <Text className="mt-3 text-[10px] font-bold text-center text-neo-primary uppercase">
                                         This section is only visible in development builds
                                     </Text>
+                                </View>
+
+                                {/* Store Review Dev Tools */}
+                                <View className="mt-3 border-5 border-neo-primary bg-neo-primary/10 p-4">
+                                    <View className="flex-row items-center justify-between mb-3">
+                                        <View>
+                                            <Text className="text-sm font-black uppercase text-black dark:text-white">
+                                                Store Review
+                                            </Text>
+                                            <Text className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                                                Triggers on first task completion
+                                            </Text>
+                                        </View>
+                                        <View className={`px-3 py-1 border-3 ${reviewRequested ? "border-neo-green bg-neo-green" : "border-gray-400 bg-gray-300"}`}>
+                                            <Text className={`text-xs font-black uppercase ${reviewRequested ? "text-black" : "text-gray-600"}`}>
+                                                {reviewRequested ? "Done" : "Pending"}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <View className="flex-row gap-2">
+                                        <Pressable
+                                            onPress={async () => {
+                                                await maybeRequestReview();
+                                                setReviewRequested(await devGetReviewStatus());
+                                            }}
+                                            className="flex-1 items-center justify-center border-4 border-neo-green bg-white p-3 active:bg-gray-100 dark:bg-neo-dark-surface"
+                                        >
+                                            <Text className="text-sm font-black uppercase text-neo-green">
+                                                Trigger Now
+                                            </Text>
+                                        </Pressable>
+                                        <Pressable
+                                            onPress={async () => {
+                                                await devResetReviewPrompt();
+                                                setReviewRequested(false);
+                                            }}
+                                            className="flex-1 items-center justify-center border-4 border-gray-400 bg-white p-3 active:bg-gray-100 dark:bg-neo-dark-surface"
+                                        >
+                                            <Text className="text-sm font-black uppercase text-black dark:text-white">
+                                                Reset
+                                            </Text>
+                                        </Pressable>
+                                    </View>
                                 </View>
                             </View>
                         </Animated.View>

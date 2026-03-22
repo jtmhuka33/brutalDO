@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect, router } from "expo-router";
 import { DrawerActions } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
+import { maybeRequestReview } from "@/utils/storeReview";
 
 import TodoItem from "@/components/TodoItem";
 import ArchiveButton from "@/components/ArchiveButton";
@@ -306,6 +307,9 @@ export default function TodoApp() {
                     await cancelNotification(reminder.notificationId);
                 }
             }
+
+            // Request a store review the first time any task is ever completed
+            await maybeRequestReview();
 
             if (!todo.completed && isRecurrenceActive(todo.recurrence)) {
                 const nextTodo = createNextRecurringTodo(
