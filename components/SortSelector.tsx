@@ -95,7 +95,7 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
                 style={animatedStyle}
                 className={cn(
                     "flex-row items-center justify-between border-5 border-black p-4 shadow-brutal active:translate-x-[4px] active:translate-y-[4px] active:shadow-none dark:border-neo-primary dark:shadow-brutal-dark",
-                    isExpanded ? "bg-neo-accent" : "bg-white dark:bg-neo-dark-surface"
+                    isExpanded ? "bg-neo-accent dark:bg-neo-dark-elevated" : "bg-white dark:bg-neo-dark-surface"
                 )}
             >
                 <View className="flex-row items-center gap-3">
@@ -165,7 +165,7 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
                                     <Text
                                         className={cn(
                                             "text-base font-black uppercase tracking-tight",
-                                            isActive ? "text-white" : "text-black dark:text-white"
+                                            isActive ? "text-black" : "text-black dark:text-white"
                                         )}
                                     >
                                         {option.label}
@@ -173,7 +173,7 @@ export default function SortSelector({ activeSort, onSortChange }: SortSelectorP
                                     <Text
                                         className={cn(
                                             "text-xs font-black uppercase tracking-wider",
-                                            isActive ? "text-white/70" : "text-gray-500 dark:text-gray-200"
+                                            isActive ? "text-black/70" : "text-gray-500 dark:text-gray-200"
                                         )}
                                     >
                                         {SORT_DESCRIPTIONS[option.value]}

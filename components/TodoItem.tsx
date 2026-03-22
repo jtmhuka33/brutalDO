@@ -432,7 +432,7 @@ export default function TodoItem({
                                 className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
                                 Priority
                             </Text>
-                            <Text className="text-sm font-black uppercase text-black dark:text-black">
+                            <Text className="text-sm font-black uppercase text-black dark:text-white">
                                 {hasPriority ? priorityOption.label : "Not set"}
                             </Text>
                         </View>
@@ -449,7 +449,7 @@ export default function TodoItem({
                                 className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
                                 Due Date
                             </Text>
-                            <Text className="text-sm font-black uppercase text-black dark:text-black">
+                            <Text className="text-sm font-black uppercase text-black dark:text-white">
                                 {item.dueDate
                                     ? formatDueDateFull(item.dueDate)
                                     : "Not set"}
@@ -479,7 +479,7 @@ export default function TodoItem({
                                                     "text-sm font-black uppercase",
                                                     isPast
                                                         ? "text-gray-500 line-through dark:text-gray-500"
-                                                        : "text-black dark:text-black"
+                                                        : "text-black dark:text-white"
                                                 )}
                                             >
                                                 {idx + 1}. {formatReminderFull(reminder.date)}
@@ -488,7 +488,7 @@ export default function TodoItem({
                                     })}
                                 </View>
                             ) : (
-                                <Text className="text-sm font-black uppercase text-black dark:text-black">
+                                <Text className="text-sm font-black uppercase text-black dark:text-white">
                                     Not set
                                 </Text>
                             )}
@@ -506,7 +506,7 @@ export default function TodoItem({
                                 className="text-xs font-black uppercase tracking-widest text-gray-600 dark:text-gray-600">
                                 Repeat
                             </Text>
-                            <Text className="text-sm font-black uppercase text-black dark:text-black">
+                            <Text className="text-sm font-black uppercase text-black dark:text-white">
                                 {hasRecurrence
                                     ? formatRecurrencePattern(item.recurrence!)
                                     : "Does not repeat"}
@@ -557,7 +557,7 @@ export default function TodoItem({
                                                     "flex-1 text-sm font-black uppercase",
                                                     subtask.completed
                                                         ? "text-gray-500 line-through dark:text-gray-500"
-                                                        : "text-black dark:text-black"
+                                                        : "text-black dark:text-white"
                                                 )}
                                                 numberOfLines={2}
                                             >
@@ -600,7 +600,7 @@ export default function TodoItem({
                     <View
                         className="mt-4 flex-row items-center justify-center gap-2 border-3 border-dashed border-gray-400 bg-white/50 p-3 dark:border-neo-primary dark:bg-neo-dark-surface/50">
                         <Ionicons name="pencil-outline" size={16} color="#666"/>
-                        <Text className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-500">
+                        <Text className="text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
                             Tap edit to modify task
                         </Text>
                     </View>

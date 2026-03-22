@@ -218,7 +218,21 @@ export function createNextRecurringTodo(
         parentRecurrenceId: completedTodo.parentRecurrenceId || completedTodo.id,
         recurrenceCount: (completedTodo.recurrenceCount || 0) + 1,
         priority: completedTodo.priority,
-        reminders: [],
+        subtasks: (completedTodo.subtasks || []).map((s) => ({
+            ...s,
+            id: `${Date.now()}-${Math.random()}`,
+            completed: false,
+        })),
+        reminders: completedTodo.dueDate
+            ? (completedTodo.reminders || []).map((r) => ({
+                  id: `${Date.now()}-${Math.random()}`,
+                  date: new Date(
+                      new Date(r.date).getTime() -
+                      new Date(completedTodo.dueDate!).getTime() +
+                      nextDueDate.getTime()
+                  ).toISOString(),
+              }))
+            : [],
     };
 }
 

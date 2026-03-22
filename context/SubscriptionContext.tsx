@@ -19,6 +19,16 @@ import {
     ALL_PRODUCT_SKUS,
 } from "@/types/subscription";
 
+function isUserCancellation(e: unknown): boolean {
+    if (!e || typeof e !== "object") return false;
+    const err = e as Record<string, unknown>;
+    return (
+        err.code === "E_USER_CANCELLED" ||
+        err.responseCode === 2 || // iOS SKErrorPaymentCancelled
+        (typeof err.message === "string" && err.message.toLowerCase().includes("cancel"))
+    );
+}
+
 const STORAGE_KEY = "@subscription_premium_v1";
 
 interface SubscriptionContextType {
@@ -180,6 +190,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
             }
         },
         onPurchaseError: (err) => {
+            if (isUserCancellation(err)) {
+                setIsPurchasing(false);
+                return;
+            }
             console.error("Purchase error:", err);
             setError("Purchase failed. Please try again.");
             setIsPurchasing(false);
@@ -352,9 +366,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
                 return true;
             } catch (e) {
+                if (isUserCancellation(e)) {
+                    setIsPurchasing(false);
+                    return false;
+                }
                 console.error("Purchase failed:", e);
-                const errorMessage = e instanceof Error ? e.message : "Purchase failed. Please try again.";
-                setError(errorMessage);
+                setError("Purchase failed. Please try again.");
                 setIsPurchasing(false);
                 await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 return false;

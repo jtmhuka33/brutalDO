@@ -39,6 +39,7 @@ import { useTodoList } from "@/context/TodoListContext";
 import { useBulkEdit } from "@/context/BulkEditContext";
 import {
     cancelNotification,
+    scheduleNotification,
     registerForPushNotificationsAsync,
 } from "@/utils/notifications";
 import { createNextRecurringTodo, isRecurrenceActive, migrateRecurrencePattern } from "@/utils/recurrence";
@@ -322,13 +323,27 @@ export default function TodoApp() {
                         Haptics.NotificationFeedbackType.Success
                     );
 
+                    // Schedule notifications for carried-over reminders
+                    const now = new Date();
+                    const scheduledReminders = await Promise.all(
+                        (nextTodo.reminders || []).map(async (r) => {
+                            const d = new Date(r.date);
+                            if (d > now) {
+                                const notificationId = await scheduleNotification(nextTodo.text, d);
+                                return { ...r, notificationId };
+                            }
+                            return r;
+                        })
+                    );
+                    const todoToInsert = { ...nextTodo, reminders: scheduledReminders };
+
                     setTodos((prev) => {
                         const updated = prev.map((t) =>
                             t.id === id
                                 ? { ...t, completed: true, archivedAt: new Date().toISOString() }
                                 : t
                         );
-                        return [nextTodo, ...updated];
+                        return [todoToInsert, ...updated];
                     });
 
                     Alert.alert(
